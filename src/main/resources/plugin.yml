@@ -1,0 +1,4 @@
+name: Quester
+version: '1.0-SNAPSHOT'
+main: com.borysmukovnin.quester.Quester
+api-version: '1.20'
