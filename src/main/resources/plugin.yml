@@ -2,3 +2,7 @@ name: Quester
 version: '1.0-SNAPSHOT'
 main: com.borysmukovnin.quester.Quester
 api-version: '1.20'
+commands:
+  q:
+    description: Main command for quest-related actions
+    usage: /q <subcommand>
