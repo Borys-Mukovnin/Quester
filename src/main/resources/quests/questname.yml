@@ -14,8 +14,8 @@ start_conditions:
   - BIOME
   - ADVANCEMENT
   - WEATHER
-  - WORLD
   - BLOCK
+  - WORLD
 stages:
   some_name1:
     name: "Stage name 1"

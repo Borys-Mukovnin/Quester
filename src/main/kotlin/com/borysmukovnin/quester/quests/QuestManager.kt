@@ -12,7 +12,6 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.enchantments.Enchantment
-import org.bukkit.NamespacedKey
 import org.bukkit.entity.EntityType
 import org.bukkit.inventory.ItemStack
 import java.io.File
@@ -38,63 +37,66 @@ class QuestManager(private val plugin: Quester) {
 
     fun loadAllQuests() {
         questsFolder.listFiles()?.forEach { file ->
-            questList[file.name] = CreateQuestData(YamlConfiguration.loadConfiguration(file))
+            val questData: QuestData? = CreateQuestData(YamlConfiguration.loadConfiguration(file))
+            if (questData != null) {
+                questList[file.name] = questData
+            }
         }
 
-        questList.forEach({file ->
-
-            file.value.Stages.forEach { stage ->
-                stage.value.StageObjectives.forEach { obj ->
-                    when (obj) {
-                        is KillObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Target} | ${obj.TargetAmount} | ${obj.Item}")
-                        }
-                        is ExpObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Mode} | ${obj.Amount}")
-                        }
-                        is CraftObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
-                        }
-                        is PlaceObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-                        }
-                        is InteractObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-                        }
-                        is MineObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-                        }
-                        is UseObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-                        }
-                        is TradeObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Amount} | ${obj.Amount}")
-                        }
-                        is EnchantObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Enchant} | ${obj.Item} | ${obj.Amount}")
-                        }
-                        is PickObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
-                        }
-                        is LootObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
-                        }
-                        is GotoObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Goto}")
-                        }
-                        is TravelObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Amount}")
-                        }
-                        is CommandObjective -> {
-                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Command}")
-                        }
-                    }
-                }
-            }
-        })
+//        questList.forEach({file ->
+//
+//            file.value.Stages.forEach { stage ->
+//                stage.value.StageObjectives.forEach { obj ->
+//                    when (obj) {
+//                        is KillObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Target} | ${obj.TargetAmount} | ${obj.Item}")
+//                        }
+//                        is ExpObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Mode} | ${obj.Amount}")
+//                        }
+//                        is CraftObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
+//                        }
+//                        is PlaceObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
+//                        }
+//                        is InteractObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
+//                        }
+//                        is MineObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
+//                        }
+//                        is UseObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
+//                        }
+//                        is TradeObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Amount} | ${obj.Amount}")
+//                        }
+//                        is EnchantObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Enchant} | ${obj.Item} | ${obj.Amount}")
+//                        }
+//                        is PickObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
+//                        }
+//                        is LootObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
+//                        }
+//                        is GotoObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Goto}")
+//                        }
+//                        is TravelObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Amount}")
+//                        }
+//                        is CommandObjective -> {
+//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Command}")
+//                        }
+//                    }
+//                }
+//            }
+//        })
     }
 
-    private fun CreateQuestData(config: YamlConfiguration): QuestData {
+    private fun CreateQuestData(config: YamlConfiguration): QuestData? {
         val stagesList: MutableMap<String,StageSection> = mutableMapOf()
 
         val questName = config.getString("name") ?: "unknown name"
@@ -103,15 +105,15 @@ class QuestManager(private val plugin: Quester) {
 
         val startConditions = config.getStringList("start_conditions")
 
-        val stagesSection = config.getConfigurationSection("stages")
-        val stageNames = stagesSection!!.getKeys(false)
+        val stagesSection = config.getConfigurationSection("stages") ?: run { return null }
+        val stageNames = stagesSection.getKeys(false)
 
         for (stageName in stageNames) {
-            val stageConfig = stagesSection.getConfigurationSection(stageName)
+            val stageConfig = stagesSection.getConfigurationSection(stageName) ?: continue
 
-            val stageSubName = stageConfig!!.getString("name") ?: "unknown name"
+            val stageSubName = stageConfig.getString("name") ?: "unknown name"
             val stageDescription = stageConfig.getStringList("description")
-            val stageObjectives = ParseObjective(stageConfig.getStringList("objectives"))
+            val stageObjectives = ParseObjectiveList(stageConfig.getStringList("objectives"))
             val stageRewards = stageConfig.getStringList("rewards")
 
             stagesList[stageName] = StageSection(stageSubName,stageDescription,stageObjectives,stageRewards)
@@ -120,7 +122,9 @@ class QuestManager(private val plugin: Quester) {
         return QuestData(questName,questDesc,startConditions,stagesList)
     }
 
-    private fun ParseObjective(objectivesList: MutableList<String>) : MutableList<Objective> {
+//    private fun ParseConditionsList(conditionsList: MutableList<String>)
+    
+    private fun ParseObjectiveList(objectivesList: MutableList<String>) : MutableList<Objective> {
         val objList: MutableList<Objective> = emptyList<Objective>().toMutableList()
 
         objectivesList.forEach { o ->

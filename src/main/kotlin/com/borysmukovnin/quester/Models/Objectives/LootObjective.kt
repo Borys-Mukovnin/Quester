@@ -4,17 +4,11 @@ import com.borysmukovnin.quester.Models.Objective
 import org.bukkit.inventory.ItemStack
 
 class LootObjective : Objective {
-    private var _completion: Boolean = false
     private var _progressCurrent: Int = 0
     private var _progressGoal: Int = 0
     private var _item: MutableList<ItemStack>? = null
     private var _amount: Int? = 1
 
-    override var Completion: Boolean
-        get() = _completion
-        set(value) {
-            _completion = value
-        }
     override var ProgressCurrent: Int
         get() = _progressCurrent
         set(value) {
@@ -35,4 +29,7 @@ class LootObjective : Objective {
         set(value) {
             _amount = value
         }
+    override fun isComplete(): Boolean {
+        return ProgressCurrent == ProgressGoal
+    }
 }

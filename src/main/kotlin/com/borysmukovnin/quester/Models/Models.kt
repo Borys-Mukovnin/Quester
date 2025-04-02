@@ -27,7 +27,10 @@ data class ActiveQuest (
     val ActiveStages: MutableMap<String,ActiveStageSection>
 )
 interface Objective {
-    var Completion: Boolean
     var ProgressCurrent: Int
     var ProgressGoal: Int
+    fun isComplete() : Boolean
+}
+interface Condition {
+    fun isFulfiled(player: Player) : Boolean
 }
