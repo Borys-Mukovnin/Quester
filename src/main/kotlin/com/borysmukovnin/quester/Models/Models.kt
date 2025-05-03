@@ -1,30 +1,19 @@
 package com.borysmukovnin.quester.Models
 
 import org.bukkit.entity.Player
-import org.bukkit.event.Event
 
-data class QuestData(
+data class Quest(
     val Name: String,
-    val QuestDescription: List<String>,
+    val Description: List<String>,
     val StartConditions: List<String>,
-    val Stages: MutableMap<String,StageSection>
+    val Stages: Map<String,Stage>,
+    val IsComplete: Boolean = false
 )
-data class StageSection(
-    val StageName: String,
-    val StageDescription: List<String>,
-    val StageObjectives: List<Objective>,
-    val StageRewards: List<String>
-)
-
-data class ActiveStageSection (
-    val Complete: Boolean,
-    val Current: Boolean,
-    val Objectives: List<Objective>
-)
-
-data class ActiveQuest (
-    val QuestData: QuestData,
-    val ActiveStages: MutableMap<String,ActiveStageSection>
+data class Stage(
+    val Name: String,
+    val Description: List<String>,
+    val Objectives: List<Objective>,
+    val Rewards: List<String>
 )
 interface Objective {
     var ProgressCurrent: Int
@@ -32,5 +21,21 @@ interface Objective {
     fun isComplete() : Boolean
 }
 interface Condition {
-    fun isFulfiled(player: Player) : Boolean
+    fun isFulfilled(player: Player) : Boolean
+}
+
+enum class ItemLocation {
+    MAIN_HAND,
+    OFF_HAND,
+    INVENTORY,
+    HOTBAR,
+    ARMOR,
+    ENDER_CHEST,
+    CURSOR,
+    ANY
+}
+enum class Weather {
+    RAIN,
+    THUNDER,
+    ANY
 }

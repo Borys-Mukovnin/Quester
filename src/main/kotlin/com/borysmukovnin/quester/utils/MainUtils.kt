@@ -1,9 +1,18 @@
 package com.borysmukovnin.quester.utils
 
 import org.bukkit.Bukkit
+import org.bukkit.Material
 import org.bukkit.enchantments.Enchantment
 
 object MainUtils {
+    fun parseMaterial(input: String): Material {
+        return try {
+            Material.valueOf(input.uppercase())
+        } catch (e: IllegalArgumentException) {
+            Material.DIRT
+        }
+    }
+
     fun getEnchantmentFromString(enchantmentName: String): Enchantment? {
         // Map the enchantment names to their respective Enchantment objects
         val enchantmentMap = mapOf(

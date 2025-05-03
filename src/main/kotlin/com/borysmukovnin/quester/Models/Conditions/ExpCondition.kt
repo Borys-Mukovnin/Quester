@@ -18,7 +18,7 @@ class ExpCondition : Condition {
             _maxExp = value
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         val exp = player.level
 
         return exp in _minExp.._maxExp

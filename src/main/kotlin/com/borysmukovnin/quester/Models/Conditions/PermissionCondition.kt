@@ -12,7 +12,7 @@ class PermissionCondition : Condition {
             _permission = value
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         val permissionMatch = _permission.any {perm ->
             player.hasPermission(perm)
         }

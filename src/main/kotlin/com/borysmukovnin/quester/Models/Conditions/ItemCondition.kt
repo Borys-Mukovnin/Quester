@@ -1,16 +1,17 @@
 package com.borysmukovnin.quester.Models.Conditions
 
 import com.borysmukovnin.quester.Models.Condition
+import com.borysmukovnin.quester.Models.ItemLocation
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 
 class ItemCondition : Condition {
-    private var _location: MutableList<String> = mutableListOf("ANY")
+    private var _location: MutableList<ItemLocation> = mutableListOf(ItemLocation.ANY)
     private var _itemType: MutableList<ItemStack> = mutableListOf()
     private var _amount: Int = 1
 
-    var Location: MutableList<String>
+    var Location: MutableList<ItemLocation>
         get() = _location
         set(value) {
             _location = value
@@ -28,22 +29,22 @@ class ItemCondition : Condition {
             _amount = value
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         var counter = 0
 
-        if (_location[0] == "ANY") {
-            _location = mutableListOf("MAINHAND", "OFFHAND", "INVENTORY")
+        if (_location[0] == ItemLocation.ANY) {
+            _location = mutableListOf(ItemLocation.MAIN_HAND, ItemLocation.OFF_HAND, ItemLocation.INVENTORY)
         }
 
         for (location in _location) {
             when (location) {
-                "MAINHAND" -> {
+                ItemLocation.MAIN_HAND -> {
                     counter += checkItem(player.inventory.itemInMainHand)
                 }
-                "OFFHAND" -> {
+                ItemLocation.OFF_HAND -> {
                     counter += checkItem(player.inventory.itemInOffHand)
                 }
-                "INVENTORY" -> {
+                ItemLocation.INVENTORY -> {
                     for (itemStack in player.inventory.contents) {
                         counter += checkItem(itemStack)
                     }
@@ -70,5 +71,4 @@ class ItemCondition : Condition {
         }
         return matchCount
     }
-
 }

@@ -14,7 +14,7 @@ class WorldCondition : Condition {
             _world = value
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         val worldMatch = _world.any { w ->
             player.location.world == w
         }

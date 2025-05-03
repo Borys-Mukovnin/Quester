@@ -18,7 +18,7 @@ class TimeCondition : Condition {
             _endTime = value
         }
 
-    override fun isFulfiled(player: Player) : Boolean {
+    override fun isFulfilled(player: Player) : Boolean {
         val time = player.world.time
 
         return time in _startTime.._endTime

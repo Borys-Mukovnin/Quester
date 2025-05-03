@@ -8,13 +8,13 @@ import org.bukkit.entity.Player
 class AdvancementCondition : Condition {
     private var _condtions: MutableList<String> = mutableListOf("minecraft:story/root")
 
-    var Conditions: MutableList<String>
+    var Advancements: MutableList<String>
         get() = _condtions
         set(value) {
             _condtions = value.map { "minecraft:$it" }.toMutableList()
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         val advancementMatch = _condtions.any {adv ->
             val advancement = Bukkit.getAdvancement(NamespacedKey.minecraft(adv)) ?: return false
             player.getAdvancementProgress(advancement).isDone

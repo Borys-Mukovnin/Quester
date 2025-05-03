@@ -13,7 +13,7 @@ class BiomeCondition : Condition {
             _biome = value
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         val location = player.location
         val biomeMatches = _biome.any { bio ->
             location.world?.getBiome(location.blockX, location.blockY, location.blockZ) == bio

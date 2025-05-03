@@ -1,15 +1,15 @@
 package com.borysmukovnin.quester.quests
 
-import com.borysmukovnin.quester.Models.ActiveQuest
-import com.borysmukovnin.quester.Models.Objective
+import com.borysmukovnin.quester.Models.*
+import com.borysmukovnin.quester.Models.Conditions.*
 import com.borysmukovnin.quester.Models.Objectives.*
-import com.borysmukovnin.quester.Models.QuestData
-import com.borysmukovnin.quester.Models.StageSection
 import com.borysmukovnin.quester.Quester
 import com.borysmukovnin.quester.utils.MainUtils
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.World
+import org.bukkit.block.Biome
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.EntityType
@@ -19,8 +19,8 @@ import java.util.*
 
 class QuestManager(private val plugin: Quester) {
 
-    private val activePlayersQuests: MutableMap<UUID,List<ActiveQuest>> = mutableMapOf()
-    private val questList: MutableMap<String,QuestData> = mutableMapOf()
+    private val activePlayersQuests: MutableMap<UUID,List<Quest>> = mutableMapOf()
+    private val questList: MutableMap<String,Quest> = mutableMapOf()
     private val questsFolder: File = File(plugin.dataFolder, "quests")
 
     fun loadActivePlayersQuests(playerUUID: UUID) {
@@ -37,67 +37,15 @@ class QuestManager(private val plugin: Quester) {
 
     fun loadAllQuests() {
         questsFolder.listFiles()?.forEach { file ->
-            val questData: QuestData? = CreateQuestData(YamlConfiguration.loadConfiguration(file))
-            if (questData != null) {
-                questList[file.name] = questData
+            val quest: Quest? = CreateQuestData(YamlConfiguration.loadConfiguration(file))
+            if (quest != null) {
+                questList[file.name] = quest
             }
         }
-
-//        questList.forEach({file ->
-//
-//            file.value.Stages.forEach { stage ->
-//                stage.value.StageObjectives.forEach { obj ->
-//                    when (obj) {
-//                        is KillObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Target} | ${obj.TargetAmount} | ${obj.Item}")
-//                        }
-//                        is ExpObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Mode} | ${obj.Amount}")
-//                        }
-//                        is CraftObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
-//                        }
-//                        is PlaceObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-//                        }
-//                        is InteractObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-//                        }
-//                        is MineObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-//                        }
-//                        is UseObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Block} | ${obj.Amount}")
-//                        }
-//                        is TradeObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Amount} | ${obj.Amount}")
-//                        }
-//                        is EnchantObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Enchant} | ${obj.Item} | ${obj.Amount}")
-//                        }
-//                        is PickObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
-//                        }
-//                        is LootObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Item} | ${obj.Amount}")
-//                        }
-//                        is GotoObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Goto}")
-//                        }
-//                        is TravelObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Amount}")
-//                        }
-//                        is CommandObjective -> {
-//                            plugin.logger.info("${file.key}-${stage.key} | ${obj.Command}")
-//                        }
-//                    }
-//                }
-//            }
-//        })
     }
 
-    private fun CreateQuestData(config: YamlConfiguration): QuestData? {
-        val stagesList: MutableMap<String,StageSection> = mutableMapOf()
+    private fun CreateQuestData(config: YamlConfiguration): Quest? {
+        val stagesList: MutableMap<String,Stage> = mutableMapOf()
 
         val questName = config.getString("name") ?: "unknown name"
 
@@ -116,15 +64,223 @@ class QuestManager(private val plugin: Quester) {
             val stageObjectives = ParseObjectiveList(stageConfig.getStringList("objectives"))
             val stageRewards = stageConfig.getStringList("rewards")
 
-            stagesList[stageName] = StageSection(stageSubName,stageDescription,stageObjectives,stageRewards)
+            stagesList[stageName] = Stage(stageSubName,stageDescription,stageObjectives,stageRewards)
         }
 
-        return QuestData(questName,questDesc,startConditions,stagesList)
+        return Quest(questName,questDesc,startConditions,stagesList)
     }
 
 //    private fun ParseConditionsList(conditionsList: MutableList<String>)
-    
-    private fun ParseObjectiveList(objectivesList: MutableList<String>) : MutableList<Objective> {
+
+    private fun ParseConditionsList(conditionsList: List<String>) : List<Condition> {
+        val conList: MutableList<Condition> = mutableListOf()
+
+        conditionsList.forEach { c ->
+            val conSplit = c.split(" ")
+            var condition: Condition = AdvancementCondition()
+
+            when(conSplit[0].uppercase()) {
+                "TIME" -> {
+                    condition = TimeCondition().apply {
+
+                        val startTime = conSplit.getOrNull(1)
+                        val endTime = conSplit.getOrNull(2)
+
+                        if (startTime != null) {
+                            if (startTime.toLongOrNull() != null) {
+                                StartTime = startTime.toLong()
+                            }
+                        }
+
+                        if (endTime != null) {
+                            if (endTime.toLongOrNull() != null) {
+                                EndTime = endTime.toLong()
+                            }
+                        }
+                    }
+                }
+                "EXP" -> {
+                    condition = ExpCondition().apply {
+
+                        val minExp = conSplit.getOrNull(1)
+                        val maxExp = conSplit.getOrNull(2)
+
+                        if (minExp != null) {
+                            if (minExp.toIntOrNull() != null) {
+                                MinExp = minExp.toInt()
+                            }
+                        }
+                        if (maxExp != null) {
+                            if (maxExp.toIntOrNull() != null) {
+                                MaxExp = maxExp.toInt()
+                            }
+                        }
+                    }
+                }
+                "HEALTH" -> {
+                    condition = HealthCondition().apply {
+                        val minHealth = conSplit.getOrNull(1)
+                        val maxHealth = conSplit.getOrNull(2)
+
+                        if (minHealth != null) {
+                            if (minHealth.toDoubleOrNull() != null) {
+                                MinHealth = minHealth.toDouble()
+                            }
+                        }
+                        if (maxHealth != null) {
+                            if (maxHealth.toDoubleOrNull() != null) {
+                                MaxHealth = maxHealth.toDouble()
+                            }
+                        }
+                    }
+                }
+                "HUNGER" -> {
+                    condition = HungerCondition().apply {
+                        val minHunger = conSplit.getOrNull(1)
+                        val maxHunger = conSplit.getOrNull(2)
+
+                        if (minHunger != null) {
+                            if (minHunger.toIntOrNull() != null) {
+                                MinHunger = minHunger.toInt()
+                            }
+                        }
+                        if (maxHunger != null) {
+                            if (maxHunger.toIntOrNull() != null) {
+                                MaxHunger = maxHunger.toInt()
+                            }
+                        }
+                    }
+                }
+                "HAS_ITEM" -> {
+                    condition = ItemCondition().apply {
+                        val locationsList = conSplit.getOrNull(1)
+                        val locations: MutableList<ItemLocation> = mutableListOf()
+                        if (locationsList != null) {
+                            locationsList.split(",").forEach { l ->
+                                when (l) {
+                                    "OFFHAND" -> {
+                                        locations.add(ItemLocation.OFF_HAND)
+                                    }
+                                    "MAINHAND" -> {
+                                        locations.add(ItemLocation.MAIN_HAND)
+                                    }
+                                    "INVENTORY" -> {
+                                        locations.add(ItemLocation.INVENTORY)
+                                    }
+                                    else -> {
+                                        locations.add(ItemLocation.ANY)
+                                    }
+                                }
+                            }
+                            Location = locations
+                        }
+
+                        val itemList = conSplit.getOrNull(2)
+                        val items: MutableList<ItemStack> = mutableListOf()
+                        if (itemList != null) {
+                            itemList.split(",").forEach { i ->
+                                items.add(ItemStack(MainUtils.parseMaterial(i)))
+                            }
+                            ItemType = items
+                        }
+
+                        val amount = conSplit.getOrNull(3)
+                        if (amount != null) {
+                            if (amount.toIntOrNull() != null) {
+                                Amount = amount.toInt()
+                            }
+                        }
+                    }
+                }
+                "PERMISSION" -> {
+                    condition = PermissionCondition().apply {
+                        val permissionList = conSplit.getOrNull(1)
+                        if (permissionList != null) {
+                            Permission = permissionList.split(",").toMutableList()
+                        }
+                    }
+                }
+                "COORDINATES" -> {
+                    condition = CoordinatesCondition().apply {
+                        val x = conSplit.getOrNull(1)
+                        val y = conSplit.getOrNull(2)
+                        val z = conSplit.getOrNull(3)
+                        val world = conSplit.getOrNull(4)
+                        if (x != null && y != null && z != null && world != null) {
+                            Location = mutableListOf(Location(Bukkit.getServer().getWorld(world),x.toDouble(),y.toDouble(),z.toDouble()))
+                        }
+                    }
+                }
+                "BIOME" -> {
+                    condition = BiomeCondition().apply {
+                        val biomeList = conSplit.getOrNull(1)
+                        val biomes: MutableList<Biome> = mutableListOf()
+
+                        if (biomeList != null) {
+                            biomeList.split(",").forEach { b ->
+                                biomes.add(Biome.valueOf(b))
+                            }
+                            Biomes = biomes
+                        }
+                    }
+                }
+                "ADVANCEMENT" -> {
+                    condition = AdvancementCondition().apply {
+                        val advList = conSplit.getOrNull(1)
+                        val advancements: MutableList<String> = mutableListOf()
+
+                        if (advList != null) {
+                            advList.split(",").forEach { a ->
+                                advancements.add("minecraft:$a")
+                            }
+                        }
+                        Advancements = advancements
+                    }
+                }
+                "WEATHER" -> {
+                    condition = WeatherCondition().apply {
+                        val weather = conSplit.getOrNull(1) ?: "ANY"
+
+                        when (weather.uppercase()) {
+                            "RAIN" -> Weathers = Weather.RAIN
+                            "THUNDER" -> Weathers = Weather.THUNDER
+                            else -> Weathers = Weather.ANY
+                        }
+                    }
+                }
+                "BLOCK" -> {
+                    condition =BlockCondition().apply {
+                        val blockList = conSplit.getOrNull(1)
+                        val blocks: MutableList<Material> = mutableListOf()
+
+                        if (blockList != null) {
+                            blockList.split(",").forEach { b ->
+                                blocks.add(MainUtils.parseMaterial(b))
+                            }
+                            Block = blocks
+                        }
+                    }
+                }
+                "WORLD" -> {
+                    condition = WorldCondition().apply {
+                        val worldList = conSplit.getOrNull(1)
+                        val worlds: MutableList<World> = mutableListOf()
+
+                        if (worldList != null) {
+                            worldList.split(",").forEach { w ->
+                                worlds.add(Bukkit.getServer().getWorld(w)!!)
+                            }
+                        }
+                    }
+                }
+            }
+            conList.add(condition)
+        }
+
+        return conList
+    }
+
+    private fun ParseObjectiveList(objectivesList: List<String>) : List<Objective> {
         val objList: MutableList<Objective> = emptyList<Objective>().toMutableList()
 
         objectivesList.forEach { o ->
@@ -149,7 +305,7 @@ class QuestManager(private val plugin: Quester) {
                             val itemList: MutableList<ItemStack> = mutableListOf()
                             val itemString: List<String> = objectiveSplit[3].split(",")
                             itemString.forEach { i ->
-                                itemList.add(ItemStack(Material.valueOf(i.uppercase())))
+                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
                             }
                             Item = itemList
                         }
@@ -173,7 +329,7 @@ class QuestManager(private val plugin: Quester) {
                             val itemList: MutableList<ItemStack> = mutableListOf()
                             val itemString: List<String> = objectiveSplit[1].split(",")
                             itemString.forEach { i ->
-                                itemList.add(ItemStack(Material.valueOf(i.uppercase())))
+                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
                             }
                             Item = itemList
                         }
@@ -188,7 +344,7 @@ class QuestManager(private val plugin: Quester) {
                             val blockList: MutableList<Material> = mutableListOf()
                             val blockString: List<String> = objectiveSplit[1].split(",")
                             blockString.forEach { b ->
-                                blockList.add(Material.valueOf(b.uppercase()))
+                                blockList.add(MainUtils.parseMaterial(b))
                             }
                             Block = blockList
                         }
@@ -203,7 +359,7 @@ class QuestManager(private val plugin: Quester) {
                             val blockList: MutableList<Material> = mutableListOf()
                             val blockString: List<String> = objectiveSplit[1].split(",")
                             blockString.forEach { b ->
-                                blockList.add(Material.valueOf(b.uppercase()))
+                                blockList.add(MainUtils.parseMaterial(b))
                             }
                             Block = blockList
                         }
@@ -218,7 +374,7 @@ class QuestManager(private val plugin: Quester) {
                             val blockList: MutableList<Material> = mutableListOf()
                             val blockString: List<String> = objectiveSplit[1].split(",")
                             blockString.forEach { b ->
-                                blockList.add(Material.valueOf(b.uppercase()))
+                                blockList.add(MainUtils.parseMaterial(b))
                             }
                             Block = blockList
                         }
@@ -233,7 +389,7 @@ class QuestManager(private val plugin: Quester) {
                             val blockList: MutableList<Material> = mutableListOf()
                             val blockString: List<String> = objectiveSplit[1].split(",")
                             blockString.forEach { b ->
-                                blockList.add(Material.valueOf(b.uppercase()))
+                                blockList.add(MainUtils.parseMaterial(b))
                             }
                             Block = blockList
                         }
@@ -263,7 +419,7 @@ class QuestManager(private val plugin: Quester) {
                             val itemList: MutableList<ItemStack> = mutableListOf()
                             val itemString: List<String> = objectiveSplit[2].split(",")
                             itemString.forEach { i ->
-                                itemList.add(ItemStack(Material.valueOf(i.uppercase())))
+                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
                             }
                             Item = itemList
                         }
@@ -278,7 +434,7 @@ class QuestManager(private val plugin: Quester) {
                             val itemList: MutableList<ItemStack> = mutableListOf()
                             val itemString: List<String> = objectiveSplit[1].split(",")
                             itemString.forEach { i ->
-                                itemList.add(ItemStack(Material.valueOf(i.uppercase())))
+                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
                             }
                             Item = itemList
                         }
@@ -293,7 +449,7 @@ class QuestManager(private val plugin: Quester) {
                             val itemList: MutableList<ItemStack> = mutableListOf()
                             val itemString: List<String> = objectiveSplit[1].split(",")
                             itemString.forEach { i ->
-                                itemList.add(ItemStack(Material.valueOf(i.uppercase())))
+                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
                             }
                             Item = itemList
                         }

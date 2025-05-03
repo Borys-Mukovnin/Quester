@@ -14,7 +14,7 @@ class CoordinatesCondition : Condition {
             _location = value
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         val locationMatch = _location.any {loc ->
             player.location == loc
         }

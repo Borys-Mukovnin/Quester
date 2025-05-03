@@ -13,7 +13,7 @@ class BlockCondition : Condition {
             _block = value
         }
 
-    override fun isFulfiled(player: Player): Boolean {
+    override fun isFulfilled(player: Player): Boolean {
         val blockMatch = _block.any { b ->
             player.location.block.type == b
         }
