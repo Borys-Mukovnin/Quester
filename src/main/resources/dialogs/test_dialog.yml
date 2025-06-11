@@ -1,0 +1,10 @@
+test:
+  prompt: "Hi. What's up?"
+  options:
+    - text: "All's good!"
+      nextNode: "test"
+      actions:
+        - type: COMMAND
+          command: "say Yooo"
+        - type: ITEM
+          item: DIRT

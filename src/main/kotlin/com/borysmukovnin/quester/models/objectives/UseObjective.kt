@@ -1,0 +1,37 @@
+package com.borysmukovnin.quester.models.objectives
+
+import com.borysmukovnin.quester.models.Objective
+import org.bukkit.Material
+
+class UseObjective : Objective {
+    private var _progressCurrent: Int = 0
+    private var _progressGoal: Int = 0
+    private var _block: List<Material>? = null
+
+    override var ProgressCurrent: Int
+        get() = _progressCurrent
+        set(value) {
+            _progressCurrent = value
+        }
+    override var ProgressGoal: Int
+        get() = _progressGoal
+        set(value) {
+            _progressGoal = value
+        }
+    var Block: List<Material>?
+        get() = _block
+        set(value) {
+            _block = value
+        }
+    override fun isComplete(): Boolean {
+        return ProgressCurrent == ProgressGoal
+    }
+    override fun deepCopy(): Objective {
+        val copy = UseObjective()
+        copy.ProgressCurrent = this._progressCurrent
+        copy.ProgressGoal = this._progressGoal
+        copy.Block = this._block?.toList() // create a shallow copy of the list
+        return copy
+    }
+
+}

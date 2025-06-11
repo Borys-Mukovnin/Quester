@@ -1,23 +1,17 @@
-player_name: "SomeName1"
-
 active_quests:
-  somequest1:
+  questname:
     stages:
       some_name1:
-        complete: false
-        current: true
         objectives:
-          - 0/1
-          - 2/10
-          - 3/5
-          - 1/1
-      other_name2:
-        complete: false
-        current: false
+          - 2400
+          - 30
+          - 120
+          - 100
+      some_name2:
         objectives:
-          - 4/12
-          - 1/1
-          - 3/56
-          - 1/8
+          - 2400
+          - 30
+          - 120
+          - 100
 completed_quests:
-  - "uknownk_quest2"
+  - unknown_quest2

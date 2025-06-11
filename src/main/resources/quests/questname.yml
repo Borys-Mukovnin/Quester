@@ -40,8 +40,8 @@ stages:
       - COMMAND [COMMAND]
     rewards:
       - COMMAND [COMMAND]
-      - GIVE [ITEM_NAME] [AMOUNT]
-      - EXP [GIVE/TAKE] [AMOUNT]
+      - ITEM [ITEM_NAME] [AMOUNT]
+      - EXP [AMOUNT]
   other_name2:
     objectives:
       - KILL [ENTITY_NAME or ANY] [AMOUNT] [ITEM_NAME or ANY]

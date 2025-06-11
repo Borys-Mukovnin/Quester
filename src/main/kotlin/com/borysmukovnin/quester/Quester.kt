@@ -1,6 +1,7 @@
 package com.borysmukovnin.quester
 
 import com.borysmukovnin.quester.commands.QuestCommands
+import com.borysmukovnin.quester.dialogs.DialogManager
 import com.borysmukovnin.quester.quests.QuestManager
 import com.borysmukovnin.quester.utils.PluginLogger
 import org.bukkit.plugin.java.JavaPlugin
@@ -15,15 +16,17 @@ class Quester : JavaPlugin() {
     override fun onEnable() {
 
         logger.info("Enabled")
-
         PluginLogger.init(this)
+
+        DialogManager.loadDialogNodes()
+
+        questManager.loadAllQuests()
 
         copyResource("config.yml")
         copyResource("quests/questname.yml")
         copyResource("progress/uuid.yml")
 
         getCommand("q")?.setExecutor(QuestCommands(this,questManager))
-
 
     }
 
