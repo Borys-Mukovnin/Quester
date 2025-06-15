@@ -7,6 +7,7 @@ import com.borysmukovnin.quester.models.actions.CommandAction
 import com.borysmukovnin.quester.models.actions.ExpAction
 import com.borysmukovnin.quester.models.actions.ItemAction
 import com.borysmukovnin.quester.Quester
+import com.borysmukovnin.quester.models.actions.StartQuestAction
 import com.borysmukovnin.quester.utils.MainUtils
 import com.borysmukovnin.quester.utils.PluginLogger
 import com.borysmukovnin.quester.utils.deepCopy
@@ -14,12 +15,12 @@ import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.block.Biome
+import org.bukkit.command.CommandSender
 import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
-import org.yaml.snakeyaml.scanner.Constant
 import java.io.File
 import java.util.*
 
@@ -32,12 +33,28 @@ object QuestManager {
         this.reload()
     }
 
-    fun reload() {
-        this.loadConditions()
-        this.loadActions()
-        this.loadObjectives()
+    fun reload(sender: CommandSender? = null, onComplete: (() -> Unit)? = null) {
+        if (sender == null) {
+            this.loadConditions()
+            this.loadActions()
+            this.loadObjectives()
+            this.loadQuests()
 
-        this.loadQuests()
+            return
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+            this.loadConditions()
+            this.loadActions()
+            this.loadObjectives()
+            this.loadQuests()
+
+            Bukkit.getScheduler().runTask(plugin, Runnable {
+                sender.sendMessage("Quest configuration reload complete.")
+            })
+
+            onComplete?.invoke()
+        })
     }
 
     private val activePlayersQuests: MutableMap<UUID, MutableMap<String, Quest>> = mutableMapOf()
@@ -87,7 +104,7 @@ object QuestManager {
     fun saveQuestProgressAsync(player: Player, quest: Quest) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
             try {
-                val playerFile = File(plugin.dataFolder, "progress/${player.uniqueId}.yml")
+                val playerFile = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
                 if (!playerFile.exists()) {
                     playerFile.parentFile.mkdirs()
                     playerFile.createNewFile()
@@ -116,7 +133,7 @@ object QuestManager {
     fun deleteQuestProgressAsync(player: Player, quest: Quest) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
             try {
-                val playerFile = File(plugin.dataFolder, "progress/${player.uniqueId}.yml")
+                val playerFile = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
                 if (!playerFile.exists()) return@Runnable  // Nothing to delete
 
                 val config = YamlConfiguration.loadConfiguration(playerFile)
@@ -140,43 +157,49 @@ object QuestManager {
         })
     }
 
-    fun loadActivePlayerQuests(player: Player) {
-        val dir = File(plugin.dataFolder, "progress")
+    fun loadActivePlayerQuestsAsync(player: Player) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+            val dir = File(plugin.dataFolder, "player_data")
+            val configFile = File(dir, "${player.uniqueId}.yml")
+            if (!configFile.exists()) return@Runnable
 
-        val configFile = File(dir, "${player.uniqueId}.yml")
-        if (!configFile.exists()) return
+            val config = YamlConfiguration.loadConfiguration(configFile)
+            val activeQuestsSection = config.getConfigurationSection("active_quests") ?: return@Runnable
 
-        val config = YamlConfiguration.loadConfiguration(configFile)
-        val activeQuestsSection = config.getConfigurationSection("active_quests") ?: return
+            val playerQuests: MutableMap<String, Quest> = mutableMapOf()
+            for (questKey in activeQuestsSection.getKeys(false)) {
+                val questSection = activeQuestsSection.getConfigurationSection(questKey) ?: return@Runnable
+                val stagesSection = questSection.getConfigurationSection("stages") ?: return@Runnable
 
-        val playerQuests: MutableMap<String, Quest> = mutableMapOf()
-        for (questKey in activeQuestsSection.getKeys(false)) {
-            val questSection = activeQuestsSection.getConfigurationSection(questKey) ?: return
-            val stagesSection = questSection.getConfigurationSection("stages") ?: return
+                for (stage in stagesSection.getKeys(false)) {
+                    val stageSection = stagesSection.getConfigurationSection(stage) ?: return@Runnable
+                    val objectives = stageSection.getStringList("objectives")
 
-            for (stage in stagesSection.getKeys(false)) {
-                val stageSection = stagesSection.getConfigurationSection(stage) ?: return
-                val objectives = stageSection.getStringList("objectives")
+                    val quest: Quest = quests[questKey]?.deepCopy() ?: return@Runnable
+                    val _stage: Stage = quest.Stages[stage]?.deepCopy() ?: return@Runnable
 
-                val quest: Quest = quests[questKey]?.deepCopy() ?: return
-                val stage: Stage = quest.Stages[stage]?.deepCopy() ?: return
+                    if (objectives.size != _stage.Objectives.size) return@Runnable
 
-                if (objectives.size != stage.Objectives.size) return
-
-                for (obj in stage.Objectives) {
-                    val cur = objectives[1].toIntOrNull() ?: return
-
-                    obj.ProgressCurrent = cur
+                    for ((index, obj) in _stage.Objectives.withIndex()) {
+                        val cur = objectives.getOrNull(index)?.toIntOrNull() ?: return@Runnable
+                        obj.ProgressCurrent = cur
+                    }
+                    playerQuests[questKey] = quest
                 }
-                playerQuests[questKey] = quest
+
+                // Switch to main thread to update shared structures
+                Bukkit.getScheduler().runTask(plugin, Runnable {
+                    activePlayersQuests[player.uniqueId] = playerQuests
+                })
             }
-            activePlayersQuests[player.uniqueId] = playerQuests
-        }
 
-        val completedQuests: MutableList<String> = config.getStringList("completed_quests")
-        activePlayersCompletedQuests[player.uniqueId] = completedQuests
-
+            val completedQuests: MutableList<String> = config.getStringList("completed_quests")
+            Bukkit.getScheduler().runTask(plugin, Runnable {
+                activePlayersCompletedQuests[player.uniqueId] = completedQuests
+            })
+        })
     }
+
 
     private fun parseQuest(config: FileConfiguration): Quest {
         val name = config.getString("name") ?: error("Quest must have a name")
@@ -262,6 +285,13 @@ object QuestManager {
                             ExpAction().apply {
                                 Mode = mode
                                 Amount = amount
+                            }
+                        }
+                        "START_QUEST" -> {
+                            val questName = section.getString("quest") ?: ""
+
+                            StartQuestAction().apply {
+                                Quest = questName
                             }
                         }
 

@@ -10,27 +10,40 @@ import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Bukkit
+import org.bukkit.command.CommandSender
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
-import org.bukkit.plugin.Plugin
 import java.io.File
 import java.util.UUID
-
-class DialogSession(val player: Player, var currentNode: DialogNode)
 
 object DialogManager {
     lateinit var plugin: Quester
 
     fun init(plugin: Quester) {
         this.plugin = plugin
-        this.init()
+        this.reload()
     }
-    fun init() {
-        this.loadDialogNodes()
+    fun reload(sender: CommandSender? = null,onComplete: (() -> Unit)? = null) {
+        if (sender == null) {
+            this.loadDialogNodes()
+
+            return
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(QuestManager.plugin, Runnable {
+            this.loadDialogNodes()
+
+            Bukkit.getScheduler().runTask(QuestManager.plugin, Runnable {
+                sender.sendMessage("Dialog configuration reload complete.")
+            })
+
+            onComplete?.invoke()
+        })
     }
 
     private val sessions = mutableMapOf<UUID, DialogSession>()
     private val nodes = mutableMapOf<String, DialogNode>()
+    private val completedDialogs: MutableMap<UUID, MutableList<String>> = mutableMapOf()
 
     fun startDialog(player: Player, startNode: DialogNode) {
         sessions[player.uniqueId] = DialogSession(player, startNode)
@@ -54,6 +67,7 @@ object DialogManager {
         } else {
             player.sendMessage("You can't choose this option.")
         }
+        this.savePlayerCompletedDialogAsync(player)
     }
 
     fun endDialog(player: Player) {
@@ -63,21 +77,20 @@ object DialogManager {
     fun showDialog(player: Player, node: DialogNode) {
         val mini = MiniMessage.miniMessage()
         var component = mini.deserialize("<gray>${node.text}</gray>\n")
-
         node.options.forEachIndexed { i, option ->
+            if (!option.conditions.all { it.isMet(player) }) return@forEachIndexed
+
             val clickable = mini.deserialize("<green>[${option.text}]</green>")
-                .clickEvent(ClickEvent.runCommand("/q dialog $i"))
+                .clickEvent(ClickEvent.runCommand("/q dialog select $i"))
                 .hoverEvent(HoverEvent.showText(mini.deserialize(option.hover)))
 
             component = component.append(clickable).append(Component.space())
         }
 
         player.sendMessage(component)
-
-
     }
 
-    fun loadDialogNodes() {
+    private fun loadDialogNodes() {
         nodes.clear()
 
         val dialogFolder = File(plugin.dataFolder, "dialogs")
@@ -115,9 +128,34 @@ object DialogManager {
             }
     }
 
+    fun loadPlayerCompletedDialogAsync(player: Player) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+            val file = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
+            if (!file.exists()) return@Runnable
+
+            val config = YamlConfiguration.loadConfiguration(file)
+            val dialogs = config.getStringList("completed_dialogs")
+
+            Bukkit.getScheduler().runTask(plugin, Runnable {
+                completedDialogs[player.uniqueId] = dialogs.toMutableList()
+            })
+        })
+    }
+
+    fun savePlayerCompletedDialogAsync(player: Player) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
+            val file = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
+            val config = if (file.exists()) YamlConfiguration.loadConfiguration(file) else YamlConfiguration()
+
+            val dialogs = completedDialogs[player.uniqueId]?.toList() ?: emptyList()
+            config.set("completed_dialogs", dialogs)
+            config.save(file)
+        })
+    }
 
     fun getNode(name: String) : DialogNode {
         return nodes[name] ?: error("There is no dialog with name $name")
     }
-
 }
+
+class DialogSession(val player: Player, var currentNode: DialogNode)

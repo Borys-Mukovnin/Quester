@@ -15,3 +15,6 @@ active_quests:
           - 100
 completed_quests:
   - unknown_quest2
+
+completed_dialogs:
+  - "test"

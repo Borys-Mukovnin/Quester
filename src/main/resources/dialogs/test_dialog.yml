@@ -7,7 +7,14 @@ test:
       conditions:
         - TimeCondition
       actions:
-        - GiveExpAction
+        - GiveSwordAction
+    - text: "<yellow>Hey, wanna get some good stuff?</yellow>"
+      hover: "Whoaa"
+      nextNode: "test2"
+      conditions:
+        - IsOnBlockCondtion
+      actions:
+        - ExecuteCommandAction
 test2:
   prompt: "Hi.2222 What's up?"
   options:

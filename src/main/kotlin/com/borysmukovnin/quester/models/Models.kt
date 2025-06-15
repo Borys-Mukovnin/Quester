@@ -39,6 +39,10 @@ interface Objective {
     fun deepCopy(): Objective
 }
 
+data class Options(
+    val Repeatable: Int
+)
+
 enum class ItemLocation {
     MAIN_HAND,
     OFF_HAND,

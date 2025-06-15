@@ -1,6 +1,6 @@
 GiveSwordAction:
   type: ITEM
-  item: DIRT
+  item: WOODEN_SWORD
   amount: 1
 ExecuteCommandAction:
   type: COMMAND
@@ -9,3 +9,6 @@ GiveExpAction:
   type: EXP
   mode: GAIN
   amount: 300
+StartQuestAction:
+  type: START_QUEST
+  quest: questname

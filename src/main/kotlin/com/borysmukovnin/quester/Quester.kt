@@ -16,7 +16,7 @@ class Quester : JavaPlugin() {
     override fun onEnable() {
 
         PluginLogger.init(this)
-        this.saveAllResources(this) // Creates default files
+        this.saveAllResources(this)
 
         QuestManager.init(this)
         DialogManager.init(this)

@@ -1,4 +1,4 @@
-HasShinyGearAdvancementObjective:
+HasShinyGearAdvancementCondition:
   type: ADVANCEMENT
   advancements:
     - "story/shiny_gear"
