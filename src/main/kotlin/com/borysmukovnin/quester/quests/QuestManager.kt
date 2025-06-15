@@ -8,37 +8,57 @@ import com.borysmukovnin.quester.models.actions.ExpAction
 import com.borysmukovnin.quester.models.actions.ItemAction
 import com.borysmukovnin.quester.Quester
 import com.borysmukovnin.quester.utils.MainUtils
+import com.borysmukovnin.quester.utils.PluginLogger
 import com.borysmukovnin.quester.utils.deepCopy
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.World
 import org.bukkit.block.Biome
-import org.bukkit.configuration.ConfigurationSection
+import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.configuration.file.YamlConfiguration
-import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import org.yaml.snakeyaml.scanner.Constant
 import java.io.File
 import java.util.*
 
-class QuestManager(private val plugin: Quester) {
+object QuestManager {
+
+    lateinit var plugin: Quester
+
+    fun init(plugin: Quester) {
+        this.plugin = plugin
+        this.reload()
+    }
+
+    fun reload() {
+        this.loadConditions()
+        this.loadActions()
+        this.loadObjectives()
+
+        this.loadQuests()
+    }
 
     private val activePlayersQuests: MutableMap<UUID, MutableMap<String, Quest>> = mutableMapOf()
     private val activePlayersCompletedQuests: MutableMap<UUID, MutableList<String>> = mutableMapOf()
-
     private val quests: MutableMap<String, Quest> = mutableMapOf()
+    private val actions: MutableMap<String, Action> = mutableMapOf()
+    private val conditions: MutableMap<String, Condition> = mutableMapOf()
+    private val objectives: MutableMap<String, Objective> = mutableMapOf()
 
 
-    fun loadAllQuests() {
+    fun loadQuests() {
+        quests.clear()
+
         val questsFolder = File(plugin.dataFolder, "quests")
-        questsFolder.listFiles()?.forEach { file ->
-            val quest: Quest? = createQuestData(YamlConfiguration.loadConfiguration(file))
-            if (quest != null) {
-                quests[file.name] = quest
+        if (!questsFolder.exists()) return
+
+        questsFolder.walkTopDown()
+            .filter { it.isFile && it.extension.equals("yml", ignoreCase = true) }
+            .forEach { file ->
+                quests[file.nameWithoutExtension] = parseQuest(YamlConfiguration.loadConfiguration(file))
             }
-        }
     }
 
     fun startPlayerQuest(player: Player, questName: String) {
@@ -123,7 +143,6 @@ class QuestManager(private val plugin: Quester) {
     fun loadActivePlayerQuests(player: Player) {
         val dir = File(plugin.dataFolder, "progress")
 
-
         val configFile = File(dir, "${player.uniqueId}.yml")
         if (!configFile.exists()) return
 
@@ -159,531 +178,343 @@ class QuestManager(private val plugin: Quester) {
 
     }
 
-    private fun createQuestData(config: YamlConfiguration): Quest? {
-        val stagesList: MutableMap<String, Stage> = mutableMapOf()
+    private fun parseQuest(config: FileConfiguration): Quest {
+        val name = config.getString("name") ?: error("Quest must have a name")
+        val description = config.getStringList("description")
 
-        val questName = config.getString("name") ?: "unknown name"
+        val startConditions = config.getStringList("start_conditions").mapNotNull { conditions[it] }
 
-        val questDesc = config.getStringList("description")
+        val stagesSection = config.getConfigurationSection("stages") ?: error("Quest must have stages")
+        val stages = mutableMapOf<String, Stage>()
 
+        for (key in stagesSection.getKeys(false)) {
+            val stageSection = stagesSection.getConfigurationSection(key) ?: continue
 
-        val startConditions = parseConditionsList(config.getStringList("start_conditions"))
+            val stageName = stageSection.getString("name") ?: key
+            val stageDescription = stageSection.getStringList("description")
 
-        val stagesSection = config.getConfigurationSection("stages") ?: run { return null }
-        val stageNames = stagesSection.getKeys(false)
+            val objectiveIds = stageSection.getStringList("objectives")
+            val objectiveList = objectiveIds.mapNotNull { objectives[it]?.deepCopy() }
 
-        for (stageName in stageNames) {
-            val stageConfig = stagesSection.getConfigurationSection(stageName) ?: continue
+            val actionIds = stageSection.getStringList("actions")
+            val actionList = actionIds.mapNotNull { actions[it] }
 
-            val stageSubName = stageConfig.getString("name") ?: "unknown name"
-            val stageDescription = stageConfig.getStringList("description")
-            val stageObjectives = parseObjectivesList(stageConfig.getStringList("objectives"))
-            val stageRewards = parseRewardsList(stageConfig.getStringList("rewards"))
+            val stage = Stage(
+                Name = stageName,
+                Description = stageDescription,
+                Objectives = objectiveList,
+                actions = actionList
+            )
 
-            stagesList[stageName] = Stage(stageSubName, stageDescription, stageObjectives, stageRewards)
+            stages[key] = stage
         }
 
-        return Quest(questName, questDesc, startConditions, stagesList)
+        return Quest(
+            Name = name,
+            Description = description,
+            StartConditions = startConditions,
+            Stages = stages
+        )
     }
 
+    private fun loadActions() {
+        actions.clear()
 
-    private fun parseConditionsList(conditionsList: List<String>): List<Condition> {
-        val conList: MutableList<Condition> = mutableListOf()
+        val actionsFolder = File(plugin.dataFolder, "actions")
+        if (!actionsFolder.exists()) return
 
-        conditionsList.forEach { c ->
-            val conSplit = c.split(" ")
-            var condition: Condition = AdvancementCondition()
+        actions.clear()
 
-            when (conSplit[0].uppercase()) {
-                "TIME" -> {
-                    condition = TimeCondition().apply {
+        actionsFolder.walkTopDown()
+            .filter { it.isFile && it.extension == "yml" }
+            .forEach { file ->
+                val config = YamlConfiguration.loadConfiguration(file)
+                for (key in config.getKeys(false)) {
+                    val section = config.getConfigurationSection(key) ?: return@forEach
+                    val type = section.getString("type")?.uppercase() ?: return@forEach
 
-                        val startTime = conSplit.getOrNull(1)
-                        val endTime = conSplit.getOrNull(2)
-
-                        if (startTime != null) {
-                            if (startTime.toLongOrNull() != null) {
-                                StartTime = startTime.toLong()
+                    val action = when (type) {
+                        "COMMAND" -> {
+                            val command = section.getString("command") ?: ""
+                            CommandAction().apply {
+                                Command = command
                             }
                         }
 
-                        if (endTime != null) {
-                            if (endTime.toLongOrNull() != null) {
-                                EndTime = endTime.toLong()
+                        "ITEM" -> {
+                            val itemName = section.getString("item") ?: "DIRT"
+                            val amount = section.getInt("amount", 1)
+                            val itemStack = ItemStack(Material.valueOf(itemName), amount)
+                            ItemAction().apply {
+                                Item = itemStack
                             }
                         }
+
+                        "EXP" -> {
+                            val amount = section.getInt("amount", 0)
+                            val modeStr = section.getString("mode") ?: "GAIN"
+                            val mode = try {
+                                Mode.valueOf(modeStr.uppercase())
+                            } catch (e: IllegalArgumentException) {
+                                Mode.GAIN
+                            }
+
+                            ExpAction().apply {
+                                Mode = mode
+                                Amount = amount
+                            }
+                        }
+
+                        else -> return@forEach
                     }
+
+                    actions[key] = action
+                    PluginLogger.logInfo("Loaded action: $key")
                 }
+            }
+    }
 
-                "EXP" -> {
-                    condition = ExpCondition().apply {
+    private fun loadConditions() {
+        conditions.clear()
 
-                        val minExp = conSplit.getOrNull(1)
-                        val maxExp = conSplit.getOrNull(2)
+        val conditionsFolder = File(plugin.dataFolder, "conditions")
+        if (!conditionsFolder.exists()) return
 
-                        if (minExp != null) {
-                            if (minExp.toIntOrNull() != null) {
-                                MinExp = minExp.toInt()
-                            }
+        conditions.clear()
+
+        conditionsFolder.walkTopDown()
+            .filter { it.isFile && it.extension == "yml" }
+            .forEach { file ->
+                val config = YamlConfiguration.loadConfiguration(file)
+                for (key in config.getKeys(false)) {
+                    val section = config.getConfigurationSection(key) ?: continue
+                    val type = section.getString("type")?.uppercase() ?: continue
+
+                    val condition = when (type) {
+                        "ADVANCEMENT" -> AdvancementCondition().apply {
+                            Advancements = section.getStringList("advancements").map { "minecraft:$it" }.toMutableList()
                         }
-                        if (maxExp != null) {
-                            if (maxExp.toIntOrNull() != null) {
-                                MaxExp = maxExp.toInt()
-                            }
+
+                        "BIOME" -> BiomeCondition().apply {
+                            Biomes = section.getStringList("biomes").map { Biome.valueOf(it.uppercase()) }.toMutableList()
                         }
-                    }
-                }
 
-                "HEALTH" -> {
-                    condition = HealthCondition().apply {
-                        val minHealth = conSplit.getOrNull(1)
-                        val maxHealth = conSplit.getOrNull(2)
-
-                        if (minHealth != null) {
-                            if (minHealth.toDoubleOrNull() != null) {
-                                MinHealth = minHealth.toDouble()
-                            }
+                        "BLOCK" -> BlockCondition().apply {
+                            Block = section.getStringList("blocks").map { MainUtils.parseMaterial(it) }.toMutableList()
                         }
-                        if (maxHealth != null) {
-                            if (maxHealth.toDoubleOrNull() != null) {
-                                MaxHealth = maxHealth.toDouble()
-                            }
+
+                        "COORDINATES" -> CoordinatesCondition().apply {
+                            val x = section.getDouble("x",0.0)
+                            val y = section.getDouble("y",0.0)
+                            val z = section.getDouble("z",0.0)
+                            val world = Bukkit.getWorld(section.getString("world") ?: "world") ?: return@forEach
+                            Location = mutableListOf(Location(world, x, y, z))
                         }
-                    }
-                }
 
-                "HUNGER" -> {
-                    condition = HungerCondition().apply {
-                        val minHunger = conSplit.getOrNull(1)
-                        val maxHunger = conSplit.getOrNull(2)
-
-                        if (minHunger != null) {
-                            if (minHunger.toIntOrNull() != null) {
-                                MinHunger = minHunger.toInt()
-                            }
+                        "EXP" -> ExpCondition().apply {
+                            MinExp = section.getInt("min",0)
+                            MaxExp = section.getInt("max",99999)
                         }
-                        if (maxHunger != null) {
-                            if (maxHunger.toIntOrNull() != null) {
-                                MaxHunger = maxHunger.toInt()
-                            }
+
+                        "HEALTH" -> HealthCondition().apply {
+                            MinHealth = section.getDouble("min",0.0)
+                            MaxHealth = section.getDouble("max",99999.0)
                         }
-                    }
-                }
 
-                "HAS_ITEM" -> {
-                    condition = ItemCondition().apply {
-                        val locationsList = conSplit.getOrNull(1)
-                        val locations: MutableList<ItemLocation> = mutableListOf()
-                        if (locationsList != null) {
-                            locationsList.split(",").forEach { l ->
-                                when (l) {
-                                    "OFFHAND" -> {
-                                        locations.add(ItemLocation.OFF_HAND)
-                                    }
+                        "HUNGER" -> HungerCondition().apply {
+                            MinHunger = section.getInt("min",0)
+                            MaxHunger = section.getInt("max",99999)
+                        }
 
-                                    "MAINHAND" -> {
-                                        locations.add(ItemLocation.MAIN_HAND)
-                                    }
-
-                                    "INVENTORY" -> {
-                                        locations.add(ItemLocation.INVENTORY)
-                                    }
-
-                                    else -> {
-                                        locations.add(ItemLocation.ANY)
-                                    }
+                        "ITEM" -> ItemCondition().apply {
+                            val locStr = section.getString("location") ?: "ANY"
+                            Location =
+                                try {
+                                    ItemLocation.valueOf(locStr.uppercase())
+                                } catch (_: IllegalArgumentException) {
+                                    ItemLocation.ANY
                                 }
+
+                            val items = section.getMapList("items")
+                            val itemStacks = mutableListOf<ItemStack>()
+                            var totalAmount = 0
+
+                            items.forEach { itemMap ->
+                                val matStr = itemMap["item"] as? String ?: return@forEach
+                                val mat = MainUtils.parseMaterial(matStr)
+                                val amt = (itemMap["amount"] as? Int) ?: 1
+
+                                itemStacks.add(ItemStack(mat, amt))
+                                totalAmount += amt
                             }
-                            Location = locations
+
+                            ItemType = itemStacks
                         }
 
-                        val itemList = conSplit.getOrNull(2)
-                        val items: MutableList<ItemStack> = mutableListOf()
-                        if (itemList != null) {
-                            itemList.split(",").forEach { i ->
-                                items.add(ItemStack(MainUtils.parseMaterial(i)))
-                            }
-                            ItemType = items
+                        "PERMISSION" -> PermissionCondition().apply {
+                            Permission = section.getStringList("permissions").toMutableList()
                         }
 
-                        val amount = conSplit.getOrNull(3)
-                        if (amount != null) {
-                            if (amount.toIntOrNull() != null) {
-                                Amount = amount.toInt()
-                            }
+                        "TIME" -> TimeCondition().apply {
+                            StartTime = section.getLong("start")
+                            EndTime = section.getLong("end")
                         }
-                    }
-                }
 
-                "PERMISSION" -> {
-                    condition = PermissionCondition().apply {
-                        val permissionList = conSplit.getOrNull(1)
-                        if (permissionList != null) {
-                            Permission = permissionList.split(",").toMutableList()
-                        }
-                    }
-                }
-
-                "COORDINATES" -> {
-                    condition = CoordinatesCondition().apply {
-                        val x = conSplit.getOrNull(1)
-                        val y = conSplit.getOrNull(2)
-                        val z = conSplit.getOrNull(3)
-                        val world = conSplit.getOrNull(4)
-                        if (x != null && y != null && z != null && world != null) {
-                            Location = mutableListOf(
-                                Location(
-                                    Bukkit.getServer().getWorld(world),
-                                    x.toDouble(),
-                                    y.toDouble(),
-                                    z.toDouble()
-                                )
-                            )
-                        }
-                    }
-                }
-
-                "BIOME" -> {
-                    condition = BiomeCondition().apply {
-                        val biomeList = conSplit.getOrNull(1)
-                        val biomes: MutableList<Biome> = mutableListOf()
-
-                        if (biomeList != null) {
-                            biomeList.split(",").forEach { b ->
-                                biomes.add(Biome.valueOf(b))
-                            }
-                            Biomes = biomes
-                        }
-                    }
-                }
-
-                "ADVANCEMENT" -> {
-                    condition = AdvancementCondition().apply {
-                        val advList = conSplit.getOrNull(1)
-                        val advancements: MutableList<String> = mutableListOf()
-
-                        if (advList != null) {
-                            advList.split(",").forEach { a ->
-                                advancements.add("minecraft:$a")
+                        "WEATHER" -> WeatherCondition().apply {
+                            Weathers = when (section.getString("weather")?.uppercase()) {
+                                "RAIN" -> Weather.RAIN
+                                "THUNDER" -> Weather.THUNDER
+                                else -> Weather.ANY
                             }
                         }
-                        Advancements = advancements
-                    }
-                }
 
-                "WEATHER" -> {
-                    condition = WeatherCondition().apply {
-                        val weather = conSplit.getOrNull(1) ?: "ANY"
-
-                        when (weather.uppercase()) {
-                            "RAIN" -> Weathers = Weather.RAIN
-                            "THUNDER" -> Weathers = Weather.THUNDER
-                            else -> Weathers = Weather.ANY
+                        "WORLD" -> WorldCondition().apply {
+                            val worldNames = section.getStringList("worlds")
+                            val worldList = worldNames.mapNotNull { Bukkit.getWorld(it) }
+                            Worlds = worldList.toMutableList()
                         }
+
+                        else -> null
                     }
-                }
 
-                "BLOCK" -> {
-                    condition = BlockCondition().apply {
-                        val blockList = conSplit.getOrNull(1)
-                        val blocks: MutableList<Material> = mutableListOf()
-
-                        if (blockList != null) {
-                            blockList.split(",").forEach { b ->
-                                blocks.add(MainUtils.parseMaterial(b))
-                            }
-                            Block = blocks
-                        }
-                    }
-                }
-
-                "WORLD" -> {
-                    condition = WorldCondition().apply {
-                        val worldList = conSplit.getOrNull(1)
-                        val worlds: MutableList<World> = mutableListOf()
-
-                        if (worldList != null) {
-                            worldList.split(",").forEach { w ->
-                                worlds.add(Bukkit.getServer().getWorld(w)!!)
-                            }
-                        }
+                    if (condition != null) {
+                        conditions[key] = condition
+                        PluginLogger.logInfo("Loaded condition: $key")
                     }
                 }
             }
-            conList.add(condition)
-        }
-
-        return conList
     }
 
-    private fun parseObjectivesList(objectivesList: List<String>): List<Objective> {
-        val objList: MutableList<Objective> = emptyList<Objective>().toMutableList()
+    private fun loadObjectives() {
+        objectives.clear()
 
-        objectivesList.forEach { o ->
-            val objectiveSplit = o.split(" ")
-            var objective: Objective? = null
+        val objectivesDir = File(plugin.dataFolder, "objectives")
+        if (!objectivesDir.exists() || !objectivesDir.isDirectory) return
 
-            when (objectiveSplit[0].uppercase()) {
-                "KILL" -> {
-                    objective = KillObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val targetList: MutableList<EntityType> = mutableListOf()
-                            val targetString: List<String> = objectiveSplit[1].split(",")
-                            targetString.forEach { e ->
-                                targetList.add(EntityType.valueOf(e.uppercase()))
-                            }
-                            Target = targetList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toIntOrNull()!!
-                        }
-                        if (objectiveSplit.getOrNull(3) != null && objectiveSplit.getOrNull(3) != "ANY") {
-                            val itemList: MutableList<ItemStack> = mutableListOf()
-                            val itemString: List<String> = objectiveSplit[3].split(",")
-                            itemString.forEach { i ->
-                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
-                            }
-                            Item = itemList
-                        }
+        objectivesDir.walkTopDown().filter { it.isFile && it.extension == "yml" }.forEach { file ->
+            val config = YamlConfiguration.loadConfiguration(file)
+            for (key in config.getKeys(false)) {
+                val section = config.getConfigurationSection(key) ?: continue
+                val type = section.getString("type")?.uppercase() ?: continue
+
+                val objective: Objective = when (type) {
+                    "COMMAND" -> CommandObjective().apply {
+                        Command = section.getString("command") ?: ""
                     }
-                }
 
-                "EXP" -> {
-                    objective = ExpObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null) {
-                            if (enumValues<ExpMode>().any { it.name == objectiveSplit[1].uppercase() }) {
-                                Mode = ExpMode.valueOf(objectiveSplit[1].uppercase())
-                            }
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "CRAFT" -> CraftObjective().apply {
+                        val items = section.getStringList("items")
+                        Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "CRAFT" -> {
-                    objective = CraftObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val itemList: MutableList<ItemStack> = mutableListOf()
-                            val itemString: List<String> = objectiveSplit[1].split(",")
-                            itemString.forEach { i ->
-                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
-                            }
-                            Item = itemList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "ENCHANT" -> EnchantObjective().apply {
+                        val itemList = section.getStringList("items")
+                        val enchantList = section.getStringList("enchants")
+
+                        Item = if (itemList.isNotEmpty()) itemList.map { ItemStack(MainUtils.parseMaterial(it)) } else null
+                        Enchant = if (enchantList.isNotEmpty()) enchantList.mapNotNull {
+                            val split = it.split(" ")
+                            MainUtils.getEnchantmentFromString(split[0])
+                        } else null
+
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "PLACE" -> {
-                    objective = PlaceObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val blockList: MutableList<Material> = mutableListOf()
-                            val blockString: List<String> = objectiveSplit[1].split(",")
-                            blockString.forEach { b ->
-                                blockList.add(MainUtils.parseMaterial(b))
-                            }
-                            Block = blockList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "EXP" -> ExpObjective().apply {
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "INTERACT" -> {
-                    objective = InteractObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val blockList: MutableList<Material> = mutableListOf()
-                            val blockString: List<String> = objectiveSplit[1].split(",")
-                            blockString.forEach { b ->
-                                blockList.add(MainUtils.parseMaterial(b))
-                            }
-                            Block = blockList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "GOTO" -> GotoObjective().apply {
+                        val world = Bukkit.getWorld(section.getString("world") ?: "world")
+                        val x = section.getDouble("x")
+                        val y = section.getDouble("y")
+                        val z = section.getDouble("z")
+                        Goto = Location(world, x, y, z)
                     }
-                }
 
-                "MINE" -> {
-                    objective = MineObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val blockList: MutableList<Material> = mutableListOf()
-                            val blockString: List<String> = objectiveSplit[1].split(",")
-                            blockString.forEach { b ->
-                                blockList.add(MainUtils.parseMaterial(b))
-                            }
-                            Block = blockList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "INTERACT" -> InteractObjective().apply {
+                        val targets = section.getStringList("targets")
+                        Block = if (targets.isNotEmpty()) targets.map { MainUtils.parseMaterial(it) } else null
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "USE" -> {
-                    objective = UseObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val blockList: MutableList<Material> = mutableListOf()
-                            val blockString: List<String> = objectiveSplit[1].split(",")
-                            blockString.forEach { b ->
-                                blockList.add(MainUtils.parseMaterial(b))
-                            }
-                            Block = blockList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "KILL" -> KillObjective().apply {
+                        val targets = section.getStringList("targets")
+                        Target = if (targets.isNotEmpty()) targets.mapNotNull {
+                            runCatching { EntityType.valueOf(it.uppercase()) }.getOrNull()
+                        } else null
+
+                        val items = section.getStringList("allowed_items")
+                        Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
+
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "TRADE" -> {
-                    objective = TradeObjective().apply {
-                        if (objectiveSplit.getOrNull(1)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(1)!!.toInt()
-                        }
+                    "LOOT" -> LootObjective().apply {
+                        val items = section.getStringList("items")
+                        Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "ENCHANT" -> {
-                    objective = EnchantObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val enchantList: MutableList<Enchantment> = mutableListOf()
-                            val enchantString: List<String> = objectiveSplit[1].split(",")
-                            enchantString.forEach { e ->
-                                enchantList.add(MainUtils.getEnchantmentFromString(e)!!)
-                            }
-                            Enchant = enchantList
-                        }
-                        if (objectiveSplit.getOrNull(2) != null && objectiveSplit.getOrNull(2) != "ANY") {
-                            val itemList: MutableList<ItemStack> = mutableListOf()
-                            val itemString: List<String> = objectiveSplit[2].split(",")
-                            itemString.forEach { i ->
-                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
-                            }
-                            Item = itemList
-                        }
-                        if (objectiveSplit.getOrNull(3)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(3)!!.toInt()
-                        }
+                    "MINE" -> MineObjective().apply {
+                        val blocks = section.getStringList("blocks")
+                        Block = if (blocks.isNotEmpty()) blocks.map { MainUtils.parseMaterial(it) } else null
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "PICK" -> {
-                    objective = PickObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val itemList: MutableList<ItemStack> = mutableListOf()
-                            val itemString: List<String> = objectiveSplit[1].split(",")
-                            itemString.forEach { i ->
-                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
-                            }
-                            Item = itemList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "PICK" -> PickObjective().apply {
+                        val items = section.getStringList("items")
+                        Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "LOOT" -> {
-                    objective = LootObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(1) != "ANY") {
-                            val itemList: MutableList<ItemStack> = mutableListOf()
-                            val itemString: List<String> = objectiveSplit[1].split(",")
-                            itemString.forEach { i ->
-                                itemList.add(ItemStack(MainUtils.parseMaterial(i)))
-                            }
-                            Item = itemList
-                        }
-                        if (objectiveSplit.getOrNull(2)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit.getOrNull(2)!!.toInt()
-                        }
+                    "PLACE" -> PlaceObjective().apply {
+                        val blocks = section.getStringList("blocks")
+                        Block = if (blocks.isNotEmpty()) blocks.map { MainUtils.parseMaterial(it) } else null
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "GOTO" -> {
-                    objective = GotoObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null && objectiveSplit.getOrNull(2)
-                                ?.toDoubleOrNull() != null && objectiveSplit.getOrNull(3)
-                                ?.toDoubleOrNull() != null && objectiveSplit.getOrNull(4) != null
-                        ) {
-                            Goto = Location(
-                                Bukkit.getWorld(objectiveSplit[4]),
-                                objectiveSplit[1].toDouble(),
-                                objectiveSplit[2].toDouble(),
-                                objectiveSplit[3].toDouble()
-                            )
-                        }
+                    "TRADE" -> TradeObjective().apply {
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "TRAVEL" -> {
-                    objective = TravelObjective().apply {
-                        if (objectiveSplit.getOrNull(1)?.toIntOrNull() != null) {
-                            ProgressGoal = objectiveSplit[1].toInt()
-                        }
+                    "TRAVEL" -> TravelObjective().apply {
+                        ProgressGoal = section.getInt("amount", 0)
                     }
-                }
 
-                "COMMAND" -> {
-                    objective = CommandObjective().apply {
-                        if (objectiveSplit.getOrNull(1) != null) {
-                            Command = objectiveSplit.drop(1).joinToString(" ")
-                        }
+                    "USE" -> UseObjective().apply {
+                        val items = section.getStringList("items")
+                        Block = if (items.isNotEmpty()) items.map { MainUtils.parseMaterial(it) } else null
+                        ProgressGoal = section.getInt("amount", 0)
                     }
+
+                    else -> continue
                 }
 
-                else -> {
-                    objective = KillObjective()
+                if (section.contains("conditions")) {
+                    val conditionList = section.getStringList("conditions")
+                    objective.Conditions = conditionList.mapNotNull { conditions[it] }
                 }
+
+                objectives[key] = objective
             }
-
-            objList.add(objective)
         }
-
-        return objList
     }
 
-    private fun parseRewardsList(rewardsList: List<String>): List<Action> {
-        val actions: MutableList<Action> = mutableListOf()
-
-        for (rewardStr in rewardsList) {
-            val rewardSplit = rewardStr.split(" ")
-            var action: Action = ItemAction()
-
-            when (rewardSplit[0].uppercase()) {
-                "COMMAND" -> {
-                    val command = rewardSplit.getOrNull(1) ?: ""
-                    action = CommandAction().apply {
-                        Command = command
-                    }
-                }
-
-                "EXP" -> {
-                    val exp = rewardSplit.getOrNull(1)?.toIntOrNull() ?: 0
-                    action = ExpAction().apply {
-                        Amount = exp
-                    }
-                }
-
-                "ITEM" -> {
-                    val itemMaterialStr = rewardSplit.getOrNull(1) ?: "DIRT"
-                    val itemMaterial = Material.valueOf(itemMaterialStr)
-                    val amount = rewardSplit.getOrNull(2)?.toIntOrNull() ?: 1
-
-                    val item = ItemStack(itemMaterial, amount)
-                    action = ItemAction().apply {
-                        Item = item
-                    }
-                }
-            }
-            actions.add(action)
-        }
-
-        return actions
+    fun getAction(name: String): Action {
+        return actions[name]
+            ?: error("Condition '$name' not found")
     }
+
+    fun getCondition(name: String): Condition {
+        return conditions[name]
+            ?: error("Condition '$name' not found")
+    }
+
+    fun getObjective(name: String): Objective {
+        return objectives[name]?.deepCopy()
+            ?: error("Condition '$name' not found")
+    }
+
 }

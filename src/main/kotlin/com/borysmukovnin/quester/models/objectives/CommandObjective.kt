@@ -1,11 +1,19 @@
 package com.borysmukovnin.quester.models.objectives
 
+import com.borysmukovnin.quester.models.Condition
 import com.borysmukovnin.quester.models.Objective
 
 class CommandObjective : Objective {
     private var _progressCurrent: Int = 0
     private var _progressGoal: Int = 1
     private var _command: String = "say Hello world!"
+    private var conditions: List<Condition>? = null
+
+    override var Conditions: List<Condition>?
+        get() = conditions
+        set(value) {
+            conditions = value
+        }
 
     override var ProgressCurrent: Int
         get() = _progressCurrent

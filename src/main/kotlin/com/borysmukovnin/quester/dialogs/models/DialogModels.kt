@@ -11,6 +11,7 @@ data class DialogNode(
 
 data class DialogOption(
     val text: String,
+    val hover: String,
     val nextNodeId: String?,
     val conditions: List<Condition> = emptyList(),
     val actions: List<Action> = emptyList()

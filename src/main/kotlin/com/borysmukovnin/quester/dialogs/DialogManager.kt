@@ -1,18 +1,34 @@
 package com.borysmukovnin.quester.dialogs
 
+import com.borysmukovnin.quester.Quester
 import com.borysmukovnin.quester.dialogs.models.DialogNode
+import com.borysmukovnin.quester.dialogs.models.DialogOption
+import com.borysmukovnin.quester.quests.QuestManager
+import com.borysmukovnin.quester.utils.PluginLogger
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
+import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Bukkit
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
+import org.bukkit.plugin.Plugin
 import java.io.File
 import java.util.UUID
 
 class DialogSession(val player: Player, var currentNode: DialogNode)
 
 object DialogManager {
+    lateinit var plugin: Quester
+
+    fun init(plugin: Quester) {
+        this.plugin = plugin
+        this.init()
+    }
+    fun init() {
+        this.loadDialogNodes()
+    }
+
     private val sessions = mutableMapOf<UUID, DialogSession>()
     private val nodes = mutableMapOf<String, DialogNode>()
 
@@ -45,43 +61,63 @@ object DialogManager {
     }
 
     fun showDialog(player: Player, node: DialogNode) {
-        val component = Component.text(node.text + "\n")
+        val mini = MiniMessage.miniMessage()
+        var component = mini.deserialize("<gray>${node.text}</gray>\n")
+
         node.options.forEachIndexed { i, option ->
-            val clickable = Component.text("[${option.text}]")
-                .clickEvent(ClickEvent.runCommand("/dialog select $i"))
-                .hoverEvent(HoverEvent.showText(Component.text("Click to select")))
-            component.append(clickable).append(Component.text(" "))
+            val clickable = mini.deserialize("<green>[${option.text}]</green>")
+                .clickEvent(ClickEvent.runCommand("/q dialog $i"))
+                .hoverEvent(HoverEvent.showText(mini.deserialize(option.hover)))
+
+            component = component.append(clickable).append(Component.space())
         }
+
         player.sendMessage(component)
+
+
     }
 
     fun loadDialogNodes() {
-        val dialogFolder = File(Bukkit.getPluginManager().getPlugin("YourPluginName")!!.dataFolder, "dialogs")
+        nodes.clear()
+
+        val dialogFolder = File(plugin.dataFolder, "dialogs")
         if (!dialogFolder.exists()) dialogFolder.mkdirs()
 
-        dialogFolder.listFiles { file -> file.extension.equals("yml", ignoreCase = true) }?.forEach { file ->
-            val config = YamlConfiguration.loadConfiguration(file)
-            for (key in config.getKeys(false)) {
-                val section = config.getConfigurationSection(key) ?: continue
-                val text = section.getString("text") ?: continue
+        dialogFolder.walkTopDown()
+            .filter { it.isFile && it.extension.equals("yml", ignoreCase = true) }
+            .forEach { file ->
+                val config = YamlConfiguration.loadConfiguration(file)
+                for (key in config.getKeys(false)) {
+                    val section = config.getConfigurationSection(key) ?: continue
+                    val prompt = section.getString("prompt") ?: continue
 
-                val options = section.getMapList("options").mapNotNull { optMap ->
-                    val optText = optMap["text"] as? String ?: return@mapNotNull null
-                    val nextNodeId = optMap["nextNodeId"] as? String
+                    val options = section.getMapList("options").mapNotNull { optMap ->
+                        val optText = optMap["text"] as? String ?: return@mapNotNull null
+                        val optHover = optMap["hover"] as? String ?: ""
+                        val nextNode = optMap["nextNode"] as? String
 
-                    val conditions = (optMap["conditions"] as? List<Map<String, Any>>)?.mapNotNull { map ->
-                        parseCondition(map)
-                    } ?: emptyList()
+                        val conditionNames = (optMap["conditions"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        val conditions = conditionNames.map { QuestManager.getCondition(it) }
 
-                    val actions = (optMap["actions"] as? List<Map<String, Any>>)?.mapNotNull { map ->
-                        parseAction(map)
-                    } ?: emptyList()
+                        val actionNames = (optMap["actions"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        val actions = actionNames.map { QuestManager.getAction(it) }
 
-                    DialogOption(optText, nextNodeId, conditions, actions)
+                        DialogOption(optText, optHover, nextNode, conditions, actions)
+                    }
+
+                    if (nodes.containsKey(key)) {
+                        PluginLogger.logInfo("Duplicate dialog node ID '$key' in file: ${file.path}")
+                        continue
+                    }
+
+                    nodes[key] = DialogNode(id = key, text = prompt, options = options)
                 }
-
-                nodes[key] = DialogNode(id = key, text = text, options = options)
             }
-        }
     }
+
+
+    fun getNode(name: String) : DialogNode {
+        return nodes[name] ?: error("There is no dialog with name $name")
+    }
+
 }

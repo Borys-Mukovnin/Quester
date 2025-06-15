@@ -4,18 +4,8 @@ description:
   - "Example description2"
   - "Example description3"
 start_conditions:
-  - TIME 0-24000
-  - EXP 0-999
-  - HEALTH 0-99999999
-  - HUNGER 0-99999999
-  - HAS_ITEM [ANY/OFFHAND/MAINHAND/INVENTORY] WOODEN_SWORD [AMOUNT]
-  - PERMISSION some.permission,some.permission2
-  - COORDINATES x y z world_name
-  - BIOME [BIOMENAME1,BIOMENAME2]
-  - ADVANCEMENT [ADVANCEMENT1,ADVANCEMENT2]
-  - WEATHER [RAIN/THUNDER]
-  - BLOCK [BLOCK1,BLOCK2]
-  - WORLD [NAME1,NAME2]
+  - HungerCondition
+  - HasItemCondition
 stages:
   some_name1:
     name: "Stage name 1"
@@ -24,61 +14,20 @@ stages:
       - "some name 1 desc 2"
       - "some name 1 desc 3"
     objectives:
-      - KILL [ENTITY_NAME or ANY] [AMOUNT] [ITEM_NAME or ANY]
-      - EXP [GAIN/LOSE] [AMOUNT]
-      - CRAFT [ITEM_NAME or ANY] [AMOUNT]
-      - PLACE [BLOCK_NAME or ANY] [AMOUNT]
-      - INTERACT [BLOCK_NAME or ANY] [AMOUNT]
-      - MINE [BLOCK or ANY] [AMOUNT]
-      - USE [ITEM_NAME or ANY] [AMOUNT]
-      - TRADE [AMOUNT]
-      - ENCHANT [ENCHANTMENT or ANY] [ITEM_NAME or ANY] [AMOUNT]
-      - PICK [ITEM_NAME or ANY] [AMOUNT]
-      - LOOT [ITEM_NAME or ANY] [AMOUNT]
-      - GOTO [X] [Y] [Z] [WORLD]
-      - TRAVEL [AMOUNT of blocks]
-      - COMMAND [COMMAND]
-    rewards:
-      - COMMAND [COMMAND]
-      - ITEM [ITEM_NAME] [AMOUNT]
-      - EXP [AMOUNT]
+      - TravelObjective
+      - UseObjective
+    actions:
+      - GiveSwordAction
+      - GiveExpAction
   other_name2:
+    name: "Other name 1"
+    description:
+      - "some name 1 desc 1"
+      - "some name 1 desc 2"
+      - "some name 1 desc 3"
     objectives:
-      - KILL [ENTITY_NAME or ANY] [AMOUNT] [ITEM_NAME or ANY]
-      - EXP [GAIN/LOSE] [AMOUNT]
-      - CRAFT [ITEM_NAME or ANY] [AMOUNT]
-      - PLACE [BLOCK_NAME or ANY] [AMOUNT]
-      - INTERACT [BLOCK_NAME or ANY] [AMOUNT]
-      - MINE [BLOCK or ANY] [AMOUNT]
-      - USE [ITEM_NAME or ANY] [AMOUNT]
-      - TRADE [AMOUNT]
-      - ENCHANT [ENCHANTMENT or ANY] [ITEM_NAME or ANY] [AMOUNT]
-      - PICK [ITEM_NAME or ANY] [AMOUNT]
-      - LOOT [ITEM_NAME or ANY] [AMOUNT]
-      - GOTO [X] [Y] [Z] [WORLD]
-      - TRAVEL [AMOUNT of blocks]
-      - COMMAND [COMMAND]
-    rewards:
-      - COMMAND [COMMAND]
-      - GIVE [ITEM_NAME] [AMOUNT]
-      - EXP [GIVE/TAKE] [AMOUNT]
-  last_name3:
-    objectives:
-      - KILL [ENTITY_NAME or ANY] [AMOUNT] [ITEM_NAME or ANY]
-      - EXP [GAIN/LOSE] [AMOUNT]
-      - CRAFT [ITEM_NAME or ANY] [AMOUNT]
-      - PLACE [BLOCK_NAME or ANY] [AMOUNT]
-      - INTERACT [BLOCK_NAME or ANY] [AMOUNT]
-      - MINE [BLOCK or ANY] [AMOUNT]
-      - USE [ITEM_NAME or ANY] [AMOUNT]
-      - TRADE [AMOUNT]
-      - ENCHANT [ENCHANTMENT or ANY] [ITEM_NAME or ANY] [AMOUNT]
-      - PICK [ITEM_NAME or ANY] [AMOUNT]
-      - LOOT [ITEM_NAME or ANY] [AMOUNT]
-      - GOTO [X] [Y] [Z] [WORLD]
-      - TRAVEL [AMOUNT of blocks]
-      - COMMAND [COMMAND]
-    rewards:
-      - COMMAND [COMMAND]
-      - GIVE [ITEM_NAME] [AMOUNT]
-      - EXP [GIVE/TAKE] [AMOUNT]
+      - TravelObjective
+      - UseObjective
+    actions:
+      - GiveSwordAction
+      - GiveExpAction

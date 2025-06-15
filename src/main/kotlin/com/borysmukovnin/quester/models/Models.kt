@@ -34,6 +34,7 @@ interface Action {
 interface Objective {
     var ProgressCurrent: Int
     var ProgressGoal: Int
+    var Conditions: List<Condition>?
     fun isComplete() : Boolean
     fun deepCopy(): Objective
 }
@@ -52,4 +53,9 @@ enum class Weather {
     RAIN,
     THUNDER,
     ANY
+}
+
+enum class Mode {
+    GAIN,
+    LOSE
 }

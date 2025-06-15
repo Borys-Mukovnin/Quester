@@ -1,14 +1,22 @@
 package com.borysmukovnin.quester.models.objectives
 
+import com.borysmukovnin.quester.models.Condition
 import com.borysmukovnin.quester.models.Objective
 import org.bukkit.entity.EntityType
 import org.bukkit.inventory.ItemStack
 
 class KillObjective : Objective {
     private var _progressCurrent: Int = 0
-    private var _progressGoal: Int = 0
-    private var _item: MutableList<ItemStack>? = null
-    private var _target: MutableList<EntityType>? = null
+    private var _progressGoal: Int = 1
+    private var _item: List<ItemStack>? = null
+    private var _target: List<EntityType>? = null
+    private var conditions: List<Condition>? = null
+
+    override var Conditions: List<Condition>?
+        get() = conditions
+        set(value) {
+            conditions = value
+        }
 
     override var ProgressCurrent: Int
         get() = _progressCurrent
@@ -20,12 +28,12 @@ class KillObjective : Objective {
         set(value) {
             _progressGoal = value
         }
-    var Item: MutableList<ItemStack>?
+    var Item: List<ItemStack>?
         get() = _item
         set(value) {
             _item = value
         }
-    var Target: MutableList<EntityType>?
+    var Target: List<EntityType>?
         get() = _target
         set(value) {
             _target = value

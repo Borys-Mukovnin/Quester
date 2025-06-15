@@ -1,12 +1,20 @@
 package com.borysmukovnin.quester.models.objectives
 
+import com.borysmukovnin.quester.models.Condition
 import com.borysmukovnin.quester.models.Objective
 import org.bukkit.Material
 
 class UseObjective : Objective {
     private var _progressCurrent: Int = 0
-    private var _progressGoal: Int = 0
+    private var _progressGoal: Int = 1
     private var _block: List<Material>? = null
+    private var conditions: List<Condition>? = null
+
+    override var Conditions: List<Condition>?
+        get() = conditions
+        set(value) {
+            conditions = value
+        }
 
     override var ProgressCurrent: Int
         get() = _progressCurrent

@@ -1,0 +1,57 @@
+HasShinyGearAdvancementObjective:
+  type: ADVANCEMENT
+  advancements:
+    - "story/shiny_gear"
+    - "story/root"
+SomeBiomesCondition:
+  type: BIOME
+  biomes:
+    - "PLAINS"
+IsOnBlockCondtion:
+  type: BLOCK
+  blocks:
+    - "DIRT"
+    - "STONE"
+LocationCondition:
+  type: COORDINATES
+  x: 11
+  y: 9
+  z: 84
+  world: "world"
+ExperienceCondition:
+  type: EXP
+  min: 0
+  max: 99999
+HealthCondition:
+  type: HEALTH
+  min: 0
+  max: 20
+HungerCondition:
+  type: HUNGER
+  min: 0
+  max: 9999
+HasItemCondition:
+  type: ITEM
+  location: ANY
+  items:
+    - item: DIRT
+      amount: 1
+    - item: STONE
+      amount: 10
+PermissionsCondition:
+  type: PERMISSION
+  permissions:
+    - "some.permission"
+    - "super.admin.pro"
+TimeCondition:
+  type: TIME
+  start: 0
+  end: 24000
+WeatherCondition:
+  type: WEATHER
+  weather: RAIN
+WorldCondition:
+  type: WORLD
+  worlds:
+    - "world"
+    - "nether_world"

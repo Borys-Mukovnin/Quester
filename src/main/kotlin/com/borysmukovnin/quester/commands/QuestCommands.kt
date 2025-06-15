@@ -1,14 +1,14 @@
 package com.borysmukovnin.quester.commands
 
 import com.borysmukovnin.quester.Quester
+import com.borysmukovnin.quester.dialogs.DialogManager
 import com.borysmukovnin.quester.quests.QuestManager
-import com.sun.source.util.Plugin
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
-class QuestCommands(private val plugin: Quester, private val questManager: QuestManager) : CommandExecutor {
+class QuestCommands(private val plugin: Quester) : CommandExecutor {
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (args.isEmpty()) {
@@ -23,6 +23,14 @@ class QuestCommands(private val plugin: Quester, private val questManager: Quest
             }
             "save" -> {
                 handleSaveCommand(sender)
+                return true
+            }
+            "dialog" -> {
+                handleDialogSelectCommand(sender,args.drop(1).toTypedArray())
+                return true
+            }
+            "startdialog" -> {
+                handleDialogStartCommand(sender,args.drop(1).toTypedArray())
                 return true
             }
             else -> {
@@ -42,7 +50,7 @@ class QuestCommands(private val plugin: Quester, private val questManager: Quest
         if (true) {
 
             sender.sendMessage("Loading quests...")
-            questManager.loadAllQuests()
+            QuestManager.loadQuests()
 
 
         } else {
@@ -57,4 +65,37 @@ class QuestCommands(private val plugin: Quester, private val questManager: Quest
             sender.sendMessage("Only players can use the save command.")
         }
     }
+
+    fun handleDialogSelectCommand(sender: CommandSender, args: Array<String>): Boolean {
+        if (sender !is Player) {
+            sender.sendMessage("Only players can use this command.")
+            return false
+        }
+
+        val index = args.getOrNull(0)?.toIntOrNull()
+        if (index == null) {
+            sender.sendMessage("Invalid selection index.")
+            return false
+        }
+
+        DialogManager.handleOptionSelection(sender, index)
+        return true
+    }
+
+    fun handleDialogStartCommand(sender: CommandSender, args: Array<String>): Boolean {
+        if (sender !is Player) {
+            sender.sendMessage("Only players can use this command.")
+            return false
+        }
+
+        val dialog = args.getOrNull(0)
+        if (dialog == null) {
+            sender.sendMessage("Invalid dialog")
+            return false
+        }
+
+        DialogManager.startDialog(sender, DialogManager.getNode(dialog))
+        return true
+    }
+
 }

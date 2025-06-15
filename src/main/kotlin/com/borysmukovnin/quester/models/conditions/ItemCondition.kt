@@ -6,11 +6,10 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 
 class ItemCondition : Condition {
-    private var _location: MutableList<ItemLocation> = mutableListOf(ItemLocation.ANY)
+    private var _location: ItemLocation = ItemLocation.ANY
     private var _itemType: MutableList<ItemStack> = mutableListOf()
-    private var _amount: Int = 1
 
-    var Location: MutableList<ItemLocation>
+    var Location: ItemLocation
         get() = _location
         set(value) {
             _location = value
@@ -22,56 +21,35 @@ class ItemCondition : Condition {
             _itemType = value
         }
 
-    var Amount: Int
-        get() = _amount
-        set(value) {
-            _amount = value
-        }
-
     override fun isMet(player: Player): Boolean {
+        val location = _location
         var counter = 0
 
-        if (_location[0] == ItemLocation.ANY) {
-            _location = mutableListOf(ItemLocation.MAIN_HAND, ItemLocation.OFF_HAND, ItemLocation.INVENTORY)
-        }
-
-        for (location in _location) {
-            when (location) {
-                ItemLocation.MAIN_HAND -> {
-                    counter += checkItem(player.inventory.itemInMainHand)
-                }
-                ItemLocation.OFF_HAND -> {
-                    counter += checkItem(player.inventory.itemInOffHand)
-                }
-                ItemLocation.INVENTORY -> {
-                    for (itemStack in player.inventory.contents) {
-                        counter += checkItem(itemStack)
-                    }
-                }
-                else -> {
-                    continue
-                }
+        when (location) {
+            ItemLocation.MAIN_HAND -> counter += checkItem(player.inventory.itemInMainHand)
+            ItemLocation.OFF_HAND -> counter += checkItem(player.inventory.itemInOffHand)
+            ItemLocation.INVENTORY -> player.inventory.contents.forEach { counter += checkItem(it) }
+            ItemLocation.ANY -> {
+                counter += checkItem(player.inventory.itemInMainHand)
+                counter += checkItem(player.inventory.itemInOffHand)
+                player.inventory.contents.forEach { counter += checkItem(it) }
             }
+            else -> {}
         }
 
-        return counter >= _amount
+        return counter >= 1
     }
 
     override fun deepCopy(): Condition {
         val copy = ItemCondition()
 
-        // Copy locations (enums, safe with toMutableList)
-        copy.Location = this._location.toMutableList()
+        copy.Location = this._location
 
         // Deep copy ItemStacks using .clone() to avoid shared references
         copy.ItemType = this._itemType.map { it.clone() }.toMutableList()
 
-        // Copy amount (primitive)
-        copy.Amount = this._amount
-
         return copy
     }
-
 
     private fun checkItem(itemStack: ItemStack?): Int {
         if (itemStack == null || itemStack.isEmpty) {

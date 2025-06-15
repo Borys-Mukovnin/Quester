@@ -1,14 +1,22 @@
 package com.borysmukovnin.quester.models.objectives
 
+import com.borysmukovnin.quester.models.Condition
 import com.borysmukovnin.quester.models.Objective
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.inventory.ItemStack
 
 class EnchantObjective : Objective {
     private var _progressCurrent: Int = 0
-    private var _progressGoal: Int = 0
+    private var _progressGoal: Int = 1
     private var _enchantment: List<Enchantment>? = null
     private var _item: List<ItemStack>? = null
+    private var conditions: List<Condition>? = null
+
+    override var Conditions: List<Condition>?
+        get() = conditions
+        set(value) {
+            conditions = value
+        }
 
     override var ProgressCurrent: Int
         get() = _progressCurrent
@@ -38,7 +46,7 @@ class EnchantObjective : Objective {
         val copy = EnchantObjective()
         copy.ProgressCurrent = this._progressCurrent
         copy.ProgressGoal = this._progressGoal
-        copy.Enchant = this._enchantment?.toList()  // Enchantment is immutable enum-like, so shallow copy is fine
+        copy.Enchant = this._enchantment?.toList()
         copy.Item = this._item?.map { it.clone() }?.toList()
         return copy
     }

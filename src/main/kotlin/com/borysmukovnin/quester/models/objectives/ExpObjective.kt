@@ -1,11 +1,20 @@
 package com.borysmukovnin.quester.models.objectives
 
+import com.borysmukovnin.quester.models.Condition
+import com.borysmukovnin.quester.models.Mode
 import com.borysmukovnin.quester.models.Objective
 
 class ExpObjective : Objective {
     private var _progressCurrent: Int = 0
-    private var _progressGoal: Int = 0
-    private var _mode: ExpMode? = ExpMode.GAIN
+    private var _progressGoal: Int = 1
+    private var _mode: Mode = com.borysmukovnin.quester.models.Mode.GAIN
+    private var conditions: List<Condition>? = null
+
+    override var Conditions: List<Condition>?
+        get() = conditions
+        set(value) {
+            conditions = value
+        }
 
     override var ProgressCurrent: Int
         get() = _progressCurrent
@@ -17,7 +26,7 @@ class ExpObjective : Objective {
         set(value) {
             _progressGoal = value
         }
-    var Mode: ExpMode?
+    var Mode: Mode
         get() = _mode
         set(value) {
             _mode = value
@@ -34,9 +43,4 @@ class ExpObjective : Objective {
         return copy
     }
 
-}
-
-enum class ExpMode {
-    GAIN,
-    LOSE
 }

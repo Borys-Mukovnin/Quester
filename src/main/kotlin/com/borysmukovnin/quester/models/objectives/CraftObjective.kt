@@ -1,12 +1,21 @@
 package com.borysmukovnin.quester.models.objectives
 
+import com.borysmukovnin.quester.models.Condition
 import com.borysmukovnin.quester.models.Objective
+import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 
 class CraftObjective : Objective {
     private var _progressCurrent: Int = 0
-    private var _progressGoal: Int = 0
-    private var _item: MutableList<ItemStack>? = null
+    private var _progressGoal: Int = 1
+    private var _item: List<ItemStack>? = null
+    private var conditions: List<Condition>? = null
+
+    override var Conditions: List<Condition>?
+        get() = conditions
+        set(value) {
+            conditions = value
+        }
 
     override var ProgressCurrent: Int
         get() = _progressCurrent
@@ -18,7 +27,7 @@ class CraftObjective : Objective {
         set(value) {
             _progressGoal = value
         }
-    var Item: MutableList<ItemStack>?
+    var Item: List<ItemStack>?
         get() = _item
         set(value) {
             _item = value

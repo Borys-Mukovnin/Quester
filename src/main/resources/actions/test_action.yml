@@ -1,0 +1,11 @@
+GiveSwordAction:
+  type: ITEM
+  item: DIRT
+  amount: 1
+ExecuteCommandAction:
+  type: COMMAND
+  command: "say hello world"
+GiveExpAction:
+  type: EXP
+  mode: GAIN
+  amount: 300

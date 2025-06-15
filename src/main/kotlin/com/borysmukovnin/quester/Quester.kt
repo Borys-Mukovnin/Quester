@@ -8,68 +8,47 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.Bukkit
 import java.io.File
 import java.io.InputStream
+import java.util.jar.JarInputStream
 
 class Quester : JavaPlugin() {
 
-    private val questManager = QuestManager(this)
 
     override fun onEnable() {
 
-        logger.info("Enabled")
         PluginLogger.init(this)
+        this.saveAllResources(this) // Creates default files
 
-        DialogManager.loadDialogNodes()
+        QuestManager.init(this)
+        DialogManager.init(this)
 
-        questManager.loadAllQuests()
-
-        copyResource("config.yml")
-        copyResource("quests/questname.yml")
-        copyResource("progress/uuid.yml")
-
-        getCommand("q")?.setExecutor(QuestCommands(this,questManager))
+        getCommand("q")?.setExecutor(QuestCommands(this))
 
     }
 
     override fun onDisable() {
-        // Plugin shutdown logic
     }
 
-    private fun copyResource(resourceName: String) {
-        // Ensure plugin folder exists
-        val pluginFolder = dataFolder
-        if (!pluginFolder.exists()) {
-            pluginFolder.mkdirs()
-        }
+    fun saveAllResources(plugin: Quester) {
+        val jarUrl = plugin.javaClass.protectionDomain.codeSource.location
+        val jarStream = JarInputStream(jarUrl.openStream())
 
-        // Get the resource as a stream from the JAR file
-        val resourceStream: InputStream? = this.javaClass.classLoader.getResourceAsStream(resourceName)
-            ?: run {
-                logger.warning("Resource '$resourceName' not found!")
-                return
-            }
-
-        // Determine the destination file
-        val destinationFile = File(pluginFolder, resourceName)
-
-        // Ensure the parent directory exists
-        destinationFile.parentFile?.mkdirs()
-
-        // Copy the resource only if it doesn't already exist
-        if (!destinationFile.exists()) {
-            try {
-                resourceStream.use { input ->
-                    if (input != null) {
-                        destinationFile.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                    logger.info("Successfully copied resource: $resourceName")
+        var entry = jarStream.nextJarEntry
+        while (entry != null) {
+            val name = entry.name
+            if (!entry.isDirectory &&
+                name.endsWith(".yml") &&
+                !name.startsWith("META-INF") &&
+                !name.contains("__MACOSX")
+            ) {
+                val outFile = File(plugin.dataFolder, name)
+                if (!outFile.exists()) {
+                    outFile.parentFile.mkdirs()
+                    plugin.saveResource(name, false)
                 }
-            } catch (e: Exception) {
-                logger.warning("Failed to copy resource '$resourceName': ${e.message}")
             }
-        } else {
-            logger.info("Resource '$resourceName' already exists, skipping copy.")
+            entry = jarStream.nextJarEntry
         }
     }
+
+
 }

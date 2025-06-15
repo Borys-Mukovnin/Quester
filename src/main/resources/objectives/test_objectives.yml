@@ -1,0 +1,76 @@
+CommandObjective:
+  type: COMMAND
+  command: "say hello world"
+  conditions: # Optional
+    - HungerCondition
+CraftObjective:
+  type: CRAFT
+  items: # Optional
+    - DIRT
+    - STONE
+  amount: 5
+EnchantObjective:
+  type: ENCHANT
+  amount: 2
+  items: # Optional
+    - WOODEN_SWORD
+  enchants: # Optional
+    - SHARPNESS 5
+ExpObjective:
+  type: EXP
+  amount: 10
+GotoObjective:
+  type: GOTO
+  world: "world"
+  x: 10
+  y: 12
+  z: 100
+InteractObjective:
+  type: INTERACT
+  targets: # Optional
+    - DIRT
+    - STONE
+  amount: 28
+KillObjective:
+  type: KILL
+  targets: # Optional
+    - ZOMBIE
+    - SKELETON
+  allowed_items: # Optional
+    - WOODEN_SWORD
+  amount: 100
+LootObjective:
+  type: LOOT
+  items: # Optional
+    - DIRT
+    - STONE
+  amount: 30
+MineObjective:
+  type: MINE
+  blocks: # Optional
+    - DIRT
+    - STONE
+  amount: 32
+PickObjective:
+  type: PICK
+  items: # Optional
+    - DIRT
+    - STONE
+  amount: 98
+PlaceObjective:
+  type: PLACE
+  blocks: # Optional
+    - DIRT
+    - STONE
+  amount: 100
+TradeObjective:
+  type: TRADE
+  amount: 5
+TravelObjective:
+  type: TRAVEL
+  amount: 5
+UseObjective:
+  type: USE
+  items: # Optional
+    - BUTTON
+  amount: 5

@@ -1,10 +1,18 @@
 test:
   prompt: "Hi. What's up?"
   options:
-    - text: "All's good!"
-      nextNode: "test"
+    - text: "<yellow>All's good!</yellow>"
+      hover: "Click yooo"
+      nextNode: "test2"
+      conditions:
+        - TimeCondition
       actions:
-        - type: COMMAND
-          command: "say Yooo"
-        - type: ITEM
-          item: DIRT
+        - GiveExpAction
+test2:
+  prompt: "Hi.2222 What's up?"
+  options:
+    - text: "All's good!"
+      conditions:
+        - TimeCondition
+      actions:
+        - GiveExpAction
