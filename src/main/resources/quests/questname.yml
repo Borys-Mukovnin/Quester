@@ -6,9 +6,11 @@ description:
 start_conditions:
   - HungerCondition
   - HasItemCondition
+options: CoolOptions
 stages:
   some_name1:
     name: "Stage name 1"
+    options: CoolOptions
     description:
       - "some name 1 desc 1"
       - "some name 1 desc 2"

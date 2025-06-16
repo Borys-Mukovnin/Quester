@@ -1,25 +1,31 @@
 package com.borysmukovnin.quester.models
 
 import org.bukkit.entity.Player
+import java.time.Instant
+import kotlin.time.Duration
 
 data class Quest(
     val Name: String,
     val Description: List<String>,
+    val Options: Options,
     val StartConditions: List<Condition>,
-    val Stages: Map<String,Stage>,
+    val Stages: Map<String, Stage>,
 ) {
     val IsComplete: Boolean
         get() = Stages.values.all { it.IsComplete }
 }
+
 data class Stage(
     val Name: String,
     val Description: List<String>,
+    val Options: Options,
     val Objectives: List<Objective>,
     val actions: List<Action>
 ) {
     val IsComplete: Boolean
         get() = Objectives.all { it.isComplete() }
 }
+
 
 interface Condition {
     fun isMet(player: Player) : Boolean
@@ -40,7 +46,11 @@ interface Objective {
 }
 
 data class Options(
-    val Repeatable: Int
+    val Repeatable: Int?,
+    val Cancelable: Boolean?,
+    val TimeLimit: Duration?,
+    val StartDate: Instant?,
+    val EndDate: Instant?
 )
 
 enum class ItemLocation {
@@ -53,6 +63,7 @@ enum class ItemLocation {
     CURSOR,
     ANY
 }
+
 enum class Weather {
     RAIN,
     THUNDER,
@@ -62,4 +73,8 @@ enum class Weather {
 enum class Mode {
     GAIN,
     LOSE
+}
+
+enum class Status {
+    ACTIVE, COMPLETED, INACTIVE
 }

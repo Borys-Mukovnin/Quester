@@ -1,5 +1,8 @@
-active_quests:
+quests:
   questname:
+    status: active
+    times_completed: 0
+    last_started: "2025-06-16T15:30:00Z"
     stages:
       some_name1:
         objectives:
@@ -13,8 +16,7 @@ active_quests:
           - 30
           - 120
           - 100
-completed_quests:
-  - unknown_quest2
-
-completed_dialogs:
-  - "test"
+dialogs:
+  test:
+    times_completed: 0
+    last_started: "2025-06-16T15:30:00Z"

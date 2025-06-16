@@ -1,0 +1,11 @@
+CoolOptions:
+  repeatable: -1
+  cancelable: true
+  time_limit:
+    days: 1
+    hours: 1
+    minutes: 1
+    seconds: 1
+  date_limit:
+    from: "2025-06-16T14:30:00Z"
+    until: "2025-06-16T15:30:00Z"
