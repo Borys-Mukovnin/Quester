@@ -2,25 +2,33 @@ package com.borysmukovnin.quester.models
 
 import org.bukkit.entity.Player
 import java.time.Instant
-import kotlin.time.Duration
+import java.time.Duration
 
 data class Quest(
     val Name: String,
     val Description: List<String>,
     val Options: Options,
     val StartConditions: List<Condition>,
+    val StartActions: List<Action>,
     val Stages: Map<String, Stage>,
 ) {
     val IsComplete: Boolean
         get() = Stages.values.all { it.IsComplete }
 }
 
+data class PlayerQuestData(
+    val Quest: Quest,
+    val Status: Status,
+    val LastStarted: Instant,
+    val TimesCompleted: Int,
+)
+
 data class Stage(
     val Name: String,
     val Description: List<String>,
     val Options: Options,
     val Objectives: List<Objective>,
-    val actions: List<Action>
+    val Actions: List<Action>
 ) {
     val IsComplete: Boolean
         get() = Objectives.all { it.isComplete() }
@@ -46,8 +54,8 @@ interface Objective {
 }
 
 data class Options(
-    val Repeatable: Int?,
-    val Cancelable: Boolean?,
+    val Repeatable: Int = 1,
+    val Cancelable: Boolean = true,
     val TimeLimit: Duration?,
     val StartDate: Instant?,
     val EndDate: Instant?

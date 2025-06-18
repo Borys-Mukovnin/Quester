@@ -1,5 +1,6 @@
 test:
   prompt: "Hi. What's up?"
+  settings: CoolOptions
   options:
     - text: "<yellow>All's good!</yellow>"
       hover: "Click yooo"

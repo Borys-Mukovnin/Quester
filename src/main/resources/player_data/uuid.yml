@@ -18,5 +18,6 @@ quests:
           - 100
 dialogs:
   test:
+    status: completed
     times_completed: 0
     last_started: "2025-06-16T15:30:00Z"

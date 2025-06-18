@@ -1,5 +1,6 @@
 package com.borysmukovnin.quester.utils
 
+import com.borysmukovnin.quester.models.Options
 import com.borysmukovnin.quester.models.Quest
 import com.borysmukovnin.quester.models.Stage
 
@@ -7,8 +8,10 @@ fun Quest.deepCopy(): Quest {
     return Quest(
         Name = this.Name,
         Description = this.Description.toList(),
-        StartConditions = this.StartConditions.map {it.deepCopy()},
-        Stages = this.Stages.mapValues { it.value.deepCopy() }
+        Options = this.Options,
+        StartConditions = this.StartConditions,
+        StartActions = this.StartActions,
+        Stages = this.Stages.mapValues { it.value.deepCopy() }.toMutableMap()
     )
 }
 fun Stage.deepCopy(): Stage {
@@ -16,6 +19,17 @@ fun Stage.deepCopy(): Stage {
         Name = this.Name,
         Description = this.Description.toList(),
         Objectives = this.Objectives.map { it.deepCopy() },
-        actions = this.actions.map {it.deepCopy()}
+        Options = this.Options,
+        Actions = this.Actions
     )
 }
+fun Options.deepCopy(): Options {
+    return Options(
+        Repeatable = this.Repeatable,
+        Cancelable = this.Cancelable,
+        TimeLimit = this.TimeLimit,
+        StartDate = this.StartDate,
+        EndDate = this.EndDate
+    )
+}
+

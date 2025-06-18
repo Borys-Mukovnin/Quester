@@ -1,5 +1,5 @@
 CoolOptions:
-  repeatable: -1
+  repeatable: 1
   cancelable: true
   time_limit:
     days: 1

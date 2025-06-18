@@ -2,12 +2,12 @@ package com.borysmukovnin.quester
 
 import com.borysmukovnin.quester.commands.QuestCommands
 import com.borysmukovnin.quester.dialogs.DialogManager
+import com.borysmukovnin.quester.listeners.PlayerJoinListener
+import com.borysmukovnin.quester.listeners.PlayerQuitListener
 import com.borysmukovnin.quester.quests.QuestManager
 import com.borysmukovnin.quester.utils.PluginLogger
 import org.bukkit.plugin.java.JavaPlugin
-import org.bukkit.Bukkit
 import java.io.File
-import java.io.InputStream
 import java.util.jar.JarInputStream
 
 class Quester : JavaPlugin() {
@@ -22,6 +22,9 @@ class Quester : JavaPlugin() {
         DialogManager.init(this)
 
         getCommand("q")?.setExecutor(QuestCommands(this))
+
+        this.server.pluginManager.registerEvents(PlayerJoinListener(), this)
+        this.server.pluginManager.registerEvents(PlayerQuitListener(), this)
 
     }
 

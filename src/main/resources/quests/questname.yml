@@ -6,6 +6,8 @@ description:
 start_conditions:
   - HungerCondition
   - HasItemCondition
+start_actions:
+  - GiveExpAction
 options: CoolOptions
 stages:
   some_name1:

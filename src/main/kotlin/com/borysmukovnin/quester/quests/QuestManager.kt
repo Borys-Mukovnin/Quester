@@ -22,6 +22,8 @@ import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import java.io.File
+import java.time.Duration
+import java.time.Instant
 import java.util.*
 
 object QuestManager {
@@ -38,6 +40,8 @@ object QuestManager {
             this.loadConditions()
             this.loadActions()
             this.loadObjectives()
+            this.loadOptions()
+
             this.loadQuests()
 
             return
@@ -47,6 +51,8 @@ object QuestManager {
             this.loadConditions()
             this.loadActions()
             this.loadObjectives()
+            this.loadOptions()
+
             this.loadQuests()
 
             Bukkit.getScheduler().runTask(plugin, Runnable {
@@ -57,12 +63,12 @@ object QuestManager {
         })
     }
 
-    private val activePlayersQuests: MutableMap<UUID, MutableMap<String, Quest>> = mutableMapOf()
-    private val activePlayersCompletedQuests: MutableMap<UUID, MutableList<String>> = mutableMapOf()
+    private val activePlayersQuests: MutableMap<UUID, MutableMap<String, PlayerQuestData>> = mutableMapOf()
     private val quests: MutableMap<String, Quest> = mutableMapOf()
     private val actions: MutableMap<String, Action> = mutableMapOf()
     private val conditions: MutableMap<String, Condition> = mutableMapOf()
     private val objectives: MutableMap<String, Objective> = mutableMapOf()
+    private val options: MutableMap<String, Options> = mutableMapOf()
 
 
     fun loadQuests() {
@@ -79,29 +85,79 @@ object QuestManager {
     }
 
     fun startPlayerQuest(player: Player, questName: String) {
-        if (activePlayersQuests[player.uniqueId]?.containsKey(questName) == true) {
-            player.sendMessage("Quest is already active")
-            return
-        }
+        val playerId = player.uniqueId
+        val playerQuests = activePlayersQuests.getOrPut(playerId) { mutableMapOf() }
+        val existingData = playerQuests[questName]
 
-        val quest: Quest = quests[questName] ?: run {
-            player.sendMessage("No such quest exists")
-            return
-        }
+        when (existingData?.Status) {
+            Status.ACTIVE -> {
+                player.sendMessage("Quest is already active")
+                return
+            }
 
-        activePlayersQuests[player.uniqueId]?.set(questName, quest)
+            Status.COMPLETED -> {
+                val repeatable = existingData.Quest.Options.Repeatable ?: -1
+                if (repeatable >= 0 && existingData.TimesCompleted >= repeatable) {
+                    player.sendMessage("Quest has been completed maximum allowed times")
+                    return
+                }
+
+                playerQuests[questName] = existingData.copy(
+                    Status = Status.ACTIVE,
+                    LastStarted = Instant.now()
+                )
+                player.sendMessage("Quest restarted")
+                return
+            }
+
+            Status.INACTIVE -> {
+                playerQuests[questName] = existingData.copy(
+                    Status = Status.ACTIVE,
+                    LastStarted = Instant.now()
+                )
+                player.sendMessage("Quest started")
+                return
+            }
+
+            null -> {
+                val quest = quests[questName]?.deepCopy() ?: run {
+                    player.sendMessage("No such quest exists")
+                    return
+                }
+
+                val newData = PlayerQuestData(
+                    Quest = quest,
+                    Status = Status.ACTIVE,
+                    LastStarted = Instant.now(),
+                    TimesCompleted = 0
+                )
+
+                playerQuests[questName] = newData
+                player.sendMessage("Quest started")
+            }
+        }
     }
 
     fun stopPlayerQuest(player: Player, questName: String) {
-        if (activePlayersQuests[player.uniqueId]?.containsKey(questName) == false) {
+        val playerQuestMap = activePlayersQuests[player.uniqueId]
+        val playerQuestData = playerQuestMap?.get(questName)
+
+        if (playerQuestData == null || playerQuestData.Status != Status.ACTIVE) {
             player.sendMessage("Quest is not active")
             return
         }
 
-        activePlayersQuests[player.uniqueId]?.remove(questName)
+        val cancelable = playerQuestData.Quest.Options.Cancelable ?: true
+        if (!cancelable) {
+            player.sendMessage("This quest cannot be cancelled")
+            return
+        }
+
+        playerQuestMap[questName] = playerQuestData.copy(Status = Status.INACTIVE)
+        player.sendMessage("Quest has been cancelled")
     }
 
-    fun saveQuestProgressAsync(player: Player, quest: Quest) {
+    fun saveQuestProgressAsync(player: Player, onComplete: Runnable? = null) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
             try {
                 val playerFile = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
@@ -111,101 +167,104 @@ object QuestManager {
                 }
 
                 val config = YamlConfiguration.loadConfiguration(playerFile)
+                val questsSection = config.getConfigurationSection("quests") ?: config.createSection("quests")
 
-                val activeQuestsSection = config.getConfigurationSection("active_quests") ?: config.createSection("active_quests")
-                val questSection = activeQuestsSection.createSection(quest.Name)
-                val stagesSection = questSection.createSection("stages")
+                val playerQuests = activePlayersQuests[player.uniqueId] ?: return@Runnable
+                for ((questName, playerQuestData) in playerQuests) {
+                    val questSubSection = questsSection.createSection(questName)
+                    questSubSection.set("status", playerQuestData.Status.name.lowercase())
+                    questSubSection.set("times_completed", playerQuestData.TimesCompleted)
+                    questSubSection.set("last_started", playerQuestData.LastStarted.toString())
 
-                for ((stageName, stage) in quest.Stages) {
-                    val stageSection = stagesSection.createSection(stageName)
-                    val objectiveProgress = stage.Objectives.map { it.ProgressCurrent }
-                    stageSection.set("objectives", objectiveProgress)
+                    val stagesSection = questSubSection.createSection("stages")
+                    for ((stageName, stage) in playerQuestData.Quest.Stages) {
+                        val stageSection = stagesSection.createSection(stageName)
+                        val objectiveProgress = stage.Objectives.map { it.ProgressCurrent }
+                        stageSection.set("objectives", objectiveProgress)
+                    }
                 }
 
                 config.save(playerFile)
 
+                this.activePlayersQuests.remove(player.uniqueId)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         })
+
+        onComplete?.run()
     }
 
-    fun deleteQuestProgressAsync(player: Player, quest: Quest) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
-            try {
-                val playerFile = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
-                if (!playerFile.exists()) return@Runnable  // Nothing to delete
-
-                val config = YamlConfiguration.loadConfiguration(playerFile)
-
-                // Get "active_quests" section and remove the specific quest if it exists
-                val activeQuestsSection = config.getConfigurationSection("active_quests")
-                if (activeQuestsSection != null && activeQuestsSection.contains(quest.Name)) {
-                    activeQuestsSection.set(quest.Name, null)
-
-                    // Clean up the active_quests section if it's empty
-                    if (activeQuestsSection.getKeys(false).isEmpty()) {
-                        config.set("active_quests", null)
-                    }
-
-                    config.save(playerFile)
-                }
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        })
-    }
-
-    fun loadActivePlayerQuestsAsync(player: Player) {
+    fun loadActivePlayerQuestsAsync(player: Player, onComplete: Runnable? = null) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
             val dir = File(plugin.dataFolder, "player_data")
             val configFile = File(dir, "${player.uniqueId}.yml")
             if (!configFile.exists()) return@Runnable
 
             val config = YamlConfiguration.loadConfiguration(configFile)
-            val activeQuestsSection = config.getConfigurationSection("active_quests") ?: return@Runnable
+            val activeQuestsSection = config.getConfigurationSection("quests") ?: return@Runnable
 
-            val playerQuests: MutableMap<String, Quest> = mutableMapOf()
+            val playerQuestDataMap = mutableMapOf<String, PlayerQuestData>()
+
             for (questKey in activeQuestsSection.getKeys(false)) {
-                val questSection = activeQuestsSection.getConfigurationSection(questKey) ?: return@Runnable
-                val stagesSection = questSection.getConfigurationSection("stages") ?: return@Runnable
+                val questSection = activeQuestsSection.getConfigurationSection(questKey) ?: continue
+                val stagesSection = questSection.getConfigurationSection("stages") ?: continue
 
-                for (stage in stagesSection.getKeys(false)) {
-                    val stageSection = stagesSection.getConfigurationSection(stage) ?: return@Runnable
-                    val objectives = stageSection.getStringList("objectives")
-
-                    val quest: Quest = quests[questKey]?.deepCopy() ?: return@Runnable
-                    val _stage: Stage = quest.Stages[stage]?.deepCopy() ?: return@Runnable
-
-                    if (objectives.size != _stage.Objectives.size) return@Runnable
-
-                    for ((index, obj) in _stage.Objectives.withIndex()) {
-                        val cur = objectives.getOrNull(index)?.toIntOrNull() ?: return@Runnable
-                        obj.ProgressCurrent = cur
-                    }
-                    playerQuests[questKey] = quest
+                val status = try {
+                    Status.valueOf(questSection.getString("status", "INACTIVE")!!.uppercase())
+                } catch (e: Exception) {
+                    Status.INACTIVE
                 }
 
-                // Switch to main thread to update shared structures
-                Bukkit.getScheduler().runTask(plugin, Runnable {
-                    activePlayersQuests[player.uniqueId] = playerQuests
-                })
+                val timesCompleted = questSection.getInt("times_completed", 0)
+                val lastStarted = questSection.getString("last_started")?.let {
+                    try {
+                        Instant.parse(it)
+                    } catch (e: Exception) {
+                        Instant.EPOCH
+                    }
+                } ?: Instant.EPOCH
+
+                val quest = quests[questKey]?.deepCopy() ?: continue
+
+                for (stageKey in stagesSection.getKeys(false)) {
+                    val stageSection = stagesSection.getConfigurationSection(stageKey) ?: continue
+                    val objectiveProgress = stageSection.getList("objectives")?.mapNotNull {
+                        it as? Int
+                    } ?: continue
+
+                    val stage = quest.Stages[stageKey] ?: continue
+                    if (objectiveProgress.size != stage.Objectives.size) continue
+
+                    for ((i, obj) in stage.Objectives.withIndex()) {
+                        obj.ProgressCurrent = objectiveProgress[i]
+                    }
+                }
+
+                val playerQuestData = PlayerQuestData(
+                    Quest = quest,
+                    Status = status,
+                    LastStarted = lastStarted,
+                    TimesCompleted = timesCompleted
+                )
+
+                playerQuestDataMap[questKey] = playerQuestData
             }
 
-            val completedQuests: MutableList<String> = config.getStringList("completed_quests")
             Bukkit.getScheduler().runTask(plugin, Runnable {
-                activePlayersCompletedQuests[player.uniqueId] = completedQuests
+                activePlayersQuests[player.uniqueId] = playerQuestDataMap
             })
         })
-    }
 
+        onComplete?.run()
+    }
 
     private fun parseQuest(config: FileConfiguration): Quest {
         val name = config.getString("name") ?: error("Quest must have a name")
         val description = config.getStringList("description")
 
         val startConditions = config.getStringList("start_conditions").mapNotNull { conditions[it] }
+        val startActions = config.getStringList("start_actions").mapNotNull { actions[it] }
 
         val stagesSection = config.getConfigurationSection("stages") ?: error("Quest must have stages")
         val stages = mutableMapOf<String, Stage>()
@@ -214,6 +273,7 @@ object QuestManager {
             val stageSection = stagesSection.getConfigurationSection(key) ?: continue
 
             val stageName = stageSection.getString("name") ?: key
+
             val stageDescription = stageSection.getStringList("description")
 
             val objectiveIds = stageSection.getStringList("objectives")
@@ -226,7 +286,8 @@ object QuestManager {
                 Name = stageName,
                 Description = stageDescription,
                 Objectives = objectiveList,
-                actions = actionList
+                Options = options[config.getString("options") ?: ""] ?: Options(1, true, null, null, null),
+                Actions = actionList
             )
 
             stages[key] = stage
@@ -235,7 +296,9 @@ object QuestManager {
         return Quest(
             Name = name,
             Description = description,
+            Options = options[config.getString("options") ?: ""] ?: Options(1, true, null, null, null),
             StartConditions = startConditions,
+            StartActions = startActions,
             Stages = stages
         )
     }
@@ -532,9 +595,70 @@ object QuestManager {
         }
     }
 
+    private fun loadOptions() {
+        options.clear()
+
+        val optionsFolder = File(plugin.dataFolder, "options")
+        if (!optionsFolder.exists()) return
+
+        optionsFolder.walkTopDown()
+            .filter { it.isFile && it.extension == "yml" }
+            .forEach { file ->
+                val config = YamlConfiguration.loadConfiguration(file)
+
+                for (key in config.getKeys(false)) {
+                    val section = config.getConfigurationSection(key) ?: continue
+
+                    val repeatable = section.getInt("repeatable", -1)
+                    val cancelable = section.getBoolean("cancelable", true)
+
+                    val timeSection = section.getConfigurationSection("time_limit")
+                    val timeLimit = timeSection?.let {
+                        val days = it.getInt("days", 0)
+                        val hours = it.getInt("hours", 0)
+                        val minutes = it.getInt("minutes", 0)
+                        val seconds = it.getInt("seconds", 0)
+                        Duration.ofDays(days.toLong())
+                            .plusHours(hours.toLong())
+                            .plusMinutes(minutes.toLong())
+                            .plusSeconds(seconds.toLong())
+                    }
+
+                    val dateSection = section.getConfigurationSection("date_limit")
+                    val startDate = dateSection?.getString("from")?.let {
+                        try {
+                            Instant.parse(it)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
+                    val endDate = dateSection?.getString("until")?.let {
+                        try {
+                            Instant.parse(it)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
+                    val option = Options(
+                        Repeatable = repeatable,
+                        Cancelable = cancelable,
+                        TimeLimit = timeLimit,
+                        StartDate = startDate,
+                        EndDate = endDate
+                    )
+
+                    options[key] = option
+                    PluginLogger.logInfo("Loaded option: $key")
+                }
+            }
+    }
+
+
     fun getAction(name: String): Action {
         return actions[name]
-            ?: error("Condition '$name' not found")
+            ?: error("Action '$name' not found")
     }
 
     fun getCondition(name: String): Condition {
@@ -544,7 +668,12 @@ object QuestManager {
 
     fun getObjective(name: String): Objective {
         return objectives[name]?.deepCopy()
-            ?: error("Condition '$name' not found")
+            ?: error("Objective '$name' not found")
+    }
+
+    fun getOption(name: String) : Options {
+        return options[name]
+            ?: error("Option '$name' not found")
     }
 
 }
