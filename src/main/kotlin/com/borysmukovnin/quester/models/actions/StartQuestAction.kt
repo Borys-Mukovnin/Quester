@@ -1,6 +1,6 @@
 package com.borysmukovnin.quester.models.actions
 
-import com.borysmukovnin.quester.models.Action
+import com.borysmukovnin.quester.models.dataclasses.Action
 import com.borysmukovnin.quester.quests.QuestManager
 import org.bukkit.entity.Player
 

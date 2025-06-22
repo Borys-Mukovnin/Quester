@@ -1,6 +1,6 @@
 package com.borysmukovnin.quester.models.actions
 
-import com.borysmukovnin.quester.models.Action
+import com.borysmukovnin.quester.models.dataclasses.Action
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack

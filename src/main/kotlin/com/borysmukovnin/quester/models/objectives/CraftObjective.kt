@@ -1,8 +1,7 @@
 package com.borysmukovnin.quester.models.objectives
 
-import com.borysmukovnin.quester.models.Condition
-import com.borysmukovnin.quester.models.Objective
-import org.bukkit.Material
+import com.borysmukovnin.quester.models.dataclasses.Condition
+import com.borysmukovnin.quester.models.dataclasses.Objective
 import org.bukkit.inventory.ItemStack
 
 class CraftObjective : Objective {

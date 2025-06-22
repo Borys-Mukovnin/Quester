@@ -1,11 +1,12 @@
 package com.borysmukovnin.quester.dialogs
 
 import com.borysmukovnin.quester.Quester
-import com.borysmukovnin.quester.dialogs.models.DialogNode
-import com.borysmukovnin.quester.dialogs.models.DialogOption
-import com.borysmukovnin.quester.dialogs.models.PlayerDialogData
-import com.borysmukovnin.quester.models.Options
-import com.borysmukovnin.quester.models.Status
+import com.borysmukovnin.quester.models.dataclasses.DialogNode
+import com.borysmukovnin.quester.models.dataclasses.DialogOption
+import com.borysmukovnin.quester.models.dataclasses.DialogSession
+import com.borysmukovnin.quester.models.dataclasses.PlayerDialogData
+import com.borysmukovnin.quester.models.dataclasses.Options
+import com.borysmukovnin.quester.models.dataclasses.Status
 import com.borysmukovnin.quester.quests.QuestManager
 import com.borysmukovnin.quester.utils.PluginLogger
 import net.kyori.adventure.text.Component
@@ -195,7 +196,7 @@ object DialogManager {
             }
     }
 
-    fun loadPlayerCompletedDialogAsync(player: Player, onComplete: Runnable? = null) {
+    fun loadPlayerDialogsAsync(player: Player, onComplete: Runnable? = null) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
             val file = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
             if (!file.exists()) return@Runnable
@@ -279,5 +280,3 @@ object DialogManager {
         return nodes[name] ?: error("There is no dialog with name $name")
     }
 }
-
-class DialogSession(val player: Player, var currentNode: DialogNode)

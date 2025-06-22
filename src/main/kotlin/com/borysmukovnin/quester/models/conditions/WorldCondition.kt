@@ -1,6 +1,6 @@
 package com.borysmukovnin.quester.models.conditions
 
-import com.borysmukovnin.quester.models.Condition
+import com.borysmukovnin.quester.models.dataclasses.Condition
 import org.bukkit.Bukkit
 import org.bukkit.World
 import org.bukkit.entity.Player

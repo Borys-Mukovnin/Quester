@@ -1,6 +1,5 @@
 package com.borysmukovnin.quester.quests
 
-import com.borysmukovnin.quester.models.*
 import com.borysmukovnin.quester.models.conditions.*
 import com.borysmukovnin.quester.models.objectives.*
 import com.borysmukovnin.quester.models.actions.CommandAction
@@ -8,6 +7,17 @@ import com.borysmukovnin.quester.models.actions.ExpAction
 import com.borysmukovnin.quester.models.actions.ItemAction
 import com.borysmukovnin.quester.Quester
 import com.borysmukovnin.quester.models.actions.StartQuestAction
+import com.borysmukovnin.quester.models.dataclasses.Action
+import com.borysmukovnin.quester.models.dataclasses.Condition
+import com.borysmukovnin.quester.models.dataclasses.ItemLocation
+import com.borysmukovnin.quester.models.dataclasses.Mode
+import com.borysmukovnin.quester.models.dataclasses.Objective
+import com.borysmukovnin.quester.models.dataclasses.Options
+import com.borysmukovnin.quester.models.dataclasses.PlayerQuestData
+import com.borysmukovnin.quester.models.dataclasses.Quest
+import com.borysmukovnin.quester.models.dataclasses.Stage
+import com.borysmukovnin.quester.models.dataclasses.Status
+import com.borysmukovnin.quester.models.dataclasses.Weather
 import com.borysmukovnin.quester.utils.MainUtils
 import com.borysmukovnin.quester.utils.PluginLogger
 import com.borysmukovnin.quester.utils.deepCopy
@@ -63,6 +73,7 @@ object QuestManager {
         })
     }
 
+
     private val activePlayersQuests: MutableMap<UUID, MutableMap<String, PlayerQuestData>> = mutableMapOf()
     private val quests: MutableMap<String, Quest> = mutableMapOf()
     private val actions: MutableMap<String, Action> = mutableMapOf()
@@ -96,7 +107,7 @@ object QuestManager {
             }
 
             Status.COMPLETED -> {
-                val repeatable = existingData.Quest.Options.Repeatable ?: -1
+                val repeatable = existingData.Quest.Options.Repeatable
                 if (repeatable >= 0 && existingData.TimesCompleted >= repeatable) {
                     player.sendMessage("Quest has been completed maximum allowed times")
                     return
@@ -115,7 +126,7 @@ object QuestManager {
                     Status = Status.ACTIVE,
                     LastStarted = Instant.now()
                 )
-                player.sendMessage("Quest started")
+                player.sendMessage("Quest ${existingData.Quest.Name} started")
                 return
             }
 
@@ -133,7 +144,7 @@ object QuestManager {
                 )
 
                 playerQuests[questName] = newData
-                player.sendMessage("Quest started")
+                player.sendMessage("Quest ${existingData?.Quest?.Name} started")
             }
         }
     }
@@ -147,7 +158,7 @@ object QuestManager {
             return
         }
 
-        val cancelable = playerQuestData.Quest.Options.Cancelable ?: true
+        val cancelable = playerQuestData.Quest.Options.Cancelable
         if (!cancelable) {
             player.sendMessage("This quest cannot be cancelled")
             return
@@ -674,6 +685,11 @@ object QuestManager {
     fun getOption(name: String) : Options {
         return options[name]
             ?: error("Option '$name' not found")
+    }
+
+    fun getActivePlayerQuests(id: UUID) : Map<String, PlayerQuestData> {
+        return activePlayersQuests[id]
+            ?: mapOf()
     }
 
 }

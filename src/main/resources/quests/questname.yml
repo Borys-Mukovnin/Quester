@@ -18,7 +18,7 @@ stages:
       - "some name 1 desc 2"
       - "some name 1 desc 3"
     objectives:
-      - TravelObjective
+      - CraftObjective
       - UseObjective
     actions:
       - GiveSwordAction

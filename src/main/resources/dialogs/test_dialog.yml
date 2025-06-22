@@ -13,7 +13,7 @@ test:
       hover: "Whoaa"
       nextNode: "test2"
       conditions:
-        - IsOnBlockCondtion
+        - IsOnBlockCondition
       actions:
         - ExecuteCommandAction
 test2:

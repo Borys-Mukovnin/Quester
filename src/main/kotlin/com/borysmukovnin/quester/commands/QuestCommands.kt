@@ -25,6 +25,26 @@ class QuestCommands(private val plugin: Quester) : CommandExecutor {
 
                 return true
             }
+            "quest" -> {
+                when (args[1].lowercase()) {
+                    "start" -> {
+                        if (sender !is Player) {
+                            sender.sendMessage("Only players can use this command.")
+                            return false
+                        }
+
+                        val questName = args.getOrNull(2)
+                        if (questName == null) {
+                            sender.sendMessage("Invalid quest name")
+                            return false
+                        }
+
+                        QuestManager.startPlayerQuest(sender,questName)
+                        return true
+                    }
+                    else -> return false
+                }
+            }
             "dialog" -> {
                 when (args[1].lowercase()) {
                     "start" -> {

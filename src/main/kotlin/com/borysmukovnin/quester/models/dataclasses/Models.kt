@@ -1,4 +1,4 @@
-package com.borysmukovnin.quester.models
+package com.borysmukovnin.quester.models.dataclasses
 
 import org.bukkit.entity.Player
 import java.time.Instant

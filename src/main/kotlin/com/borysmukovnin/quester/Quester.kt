@@ -2,6 +2,8 @@ package com.borysmukovnin.quester
 
 import com.borysmukovnin.quester.commands.QuestCommands
 import com.borysmukovnin.quester.dialogs.DialogManager
+import com.borysmukovnin.quester.listeners.PlayerCommandListener
+import com.borysmukovnin.quester.listeners.PlayerCraftListener
 import com.borysmukovnin.quester.listeners.PlayerJoinListener
 import com.borysmukovnin.quester.listeners.PlayerQuitListener
 import com.borysmukovnin.quester.quests.QuestManager
@@ -25,6 +27,9 @@ class Quester : JavaPlugin() {
 
         this.server.pluginManager.registerEvents(PlayerJoinListener(), this)
         this.server.pluginManager.registerEvents(PlayerQuitListener(), this)
+        this.server.pluginManager.registerEvents(PlayerCommandListener(), this)
+        this.server.pluginManager.registerEvents(PlayerCraftListener(), this)
+
 
     }
 

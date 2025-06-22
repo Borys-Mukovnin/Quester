@@ -7,7 +7,7 @@ SomeBiomesCondition:
   type: BIOME
   biomes:
     - "PLAINS"
-IsOnBlockCondtion:
+IsOnBlockCondition:
   type: BLOCK
   blocks:
     - "DIRT"

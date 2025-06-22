@@ -1,7 +1,7 @@
 package com.borysmukovnin.quester.models.conditions
 
-import com.borysmukovnin.quester.models.Condition
-import com.borysmukovnin.quester.models.ItemLocation
+import com.borysmukovnin.quester.models.dataclasses.Condition
+import com.borysmukovnin.quester.models.dataclasses.ItemLocation
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 

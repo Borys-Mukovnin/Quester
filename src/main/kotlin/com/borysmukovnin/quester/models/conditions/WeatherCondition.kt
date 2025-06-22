@@ -1,7 +1,7 @@
 package com.borysmukovnin.quester.models.conditions
 
-import com.borysmukovnin.quester.models.Condition
-import com.borysmukovnin.quester.models.Weather
+import com.borysmukovnin.quester.models.dataclasses.Condition
+import com.borysmukovnin.quester.models.dataclasses.Weather
 import org.bukkit.entity.Player
 
 class WeatherCondition : Condition {

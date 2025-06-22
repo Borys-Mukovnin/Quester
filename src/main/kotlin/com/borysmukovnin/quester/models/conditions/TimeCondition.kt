@@ -1,6 +1,6 @@
 package com.borysmukovnin.quester.models.conditions
 
-import com.borysmukovnin.quester.models.Condition
+import com.borysmukovnin.quester.models.dataclasses.Condition
 import org.bukkit.entity.Player
 
 class TimeCondition : Condition {

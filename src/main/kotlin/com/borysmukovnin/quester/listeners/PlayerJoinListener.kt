@@ -11,7 +11,7 @@ class PlayerJoinListener : Listener {
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) {
         QuestManager.loadActivePlayerQuestsAsync(event.player) {
-            DialogManager.loadPlayerCompletedDialogAsync(event.player)
+            DialogManager.loadPlayerDialogsAsync(event.player)
         }
     }
 }

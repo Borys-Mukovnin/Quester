@@ -1,13 +1,13 @@
 package com.borysmukovnin.quester.models.objectives
 
-import com.borysmukovnin.quester.models.Condition
-import com.borysmukovnin.quester.models.Mode
-import com.borysmukovnin.quester.models.Objective
+import com.borysmukovnin.quester.models.dataclasses.Condition
+import com.borysmukovnin.quester.models.dataclasses.Mode
+import com.borysmukovnin.quester.models.dataclasses.Objective
 
 class ExpObjective : Objective {
     private var _progressCurrent: Int = 0
     private var _progressGoal: Int = 1
-    private var _mode: Mode = com.borysmukovnin.quester.models.Mode.GAIN
+    private var _mode: Mode = com.borysmukovnin.quester.models.dataclasses.Mode.GAIN
     private var conditions: List<Condition>? = null
 
     override var Conditions: List<Condition>?

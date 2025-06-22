@@ -1,8 +1,8 @@
 package com.borysmukovnin.quester.utils
 
-import com.borysmukovnin.quester.models.Options
-import com.borysmukovnin.quester.models.Quest
-import com.borysmukovnin.quester.models.Stage
+import com.borysmukovnin.quester.models.dataclasses.Options
+import com.borysmukovnin.quester.models.dataclasses.Quest
+import com.borysmukovnin.quester.models.dataclasses.Stage
 
 fun Quest.deepCopy(): Quest {
     return Quest(
@@ -13,6 +13,10 @@ fun Quest.deepCopy(): Quest {
         StartActions = this.StartActions,
         Stages = this.Stages.mapValues { it.value.deepCopy() }.toMutableMap()
     )
+}
+fun Quest.nextIncompleteStage(): Stage? {
+    return Stages.values
+        .firstOrNull { !it.IsComplete }
 }
 fun Stage.deepCopy(): Stage {
     return Stage(

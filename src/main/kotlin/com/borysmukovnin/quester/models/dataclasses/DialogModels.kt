@@ -1,6 +1,6 @@
-package com.borysmukovnin.quester.dialogs.models
+package com.borysmukovnin.quester.models.dataclasses
 
-import com.borysmukovnin.quester.models.*
+import org.bukkit.entity.Player
 import java.time.Instant
 
 data class DialogNode(
@@ -23,4 +23,9 @@ data class PlayerDialogData(
     val Status: Status,
     val LastStarted: Instant,
     val TimesCompleted: Int,
+)
+
+data class DialogSession(
+    val player: Player,
+    var currentNode: DialogNode
 )
