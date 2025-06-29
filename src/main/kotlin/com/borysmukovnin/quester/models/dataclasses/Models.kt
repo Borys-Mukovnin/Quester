@@ -1,6 +1,7 @@
 package com.borysmukovnin.quester.models.dataclasses
 
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import java.time.Instant
 import java.time.Duration
 
@@ -34,7 +35,6 @@ data class Stage(
         get() = Objectives.all { it.isComplete() }
 }
 
-
 interface Condition {
     fun isMet(player: Player) : Boolean
     fun deepCopy(): Condition
@@ -60,7 +60,22 @@ data class Options(
     val StartDate: Instant?,
     val EndDate: Instant?
 )
+data class Gui(
+    val name: String,
+    val size: Int,
+    val items: List<GuiItem>
+)
 
+data class GuiItem(
+    val itemStack: ItemStack,
+    val position: List<Int>,
+    val leftClick: String?,
+    val rightClick: String?,
+    val middleClick: String?
+)
+data class Lang(
+    val progressMessage: String,
+)
 enum class ItemLocation {
     MAIN_HAND,
     OFF_HAND,
@@ -86,3 +101,8 @@ enum class Mode {
 enum class Status {
     ACTIVE, COMPLETED, INACTIVE
 }
+
+enum class TravelMode {
+    WALK, SPRINT, SWIM, FLY, MOUNT
+}
+

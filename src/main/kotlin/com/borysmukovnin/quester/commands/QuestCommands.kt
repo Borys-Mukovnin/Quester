@@ -2,7 +2,9 @@ package com.borysmukovnin.quester.commands
 
 import com.borysmukovnin.quester.Quester
 import com.borysmukovnin.quester.dialogs.DialogManager
+import com.borysmukovnin.quester.guis.MainGui
 import com.borysmukovnin.quester.quests.QuestManager
+import com.borysmukovnin.quester.utils.Configurator
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
@@ -19,8 +21,10 @@ class QuestCommands(private val plugin: Quester) : CommandExecutor {
         when (args[0].lowercase()) {
             "reload" -> {
                 sender.sendMessage("Reloading configuration...")
-                QuestManager.reload(sender) {
-                    DialogManager.reload(sender)
+                Configurator.reload(sender) {
+                    QuestManager.reload(sender) {
+                        DialogManager.reload(sender)
+                    }
                 }
 
                 return true
@@ -40,6 +44,21 @@ class QuestCommands(private val plugin: Quester) : CommandExecutor {
                         }
 
                         QuestManager.startPlayerQuest(sender,questName)
+                        return true
+                    }
+                    else -> return false
+                }
+            }
+            "gui" -> {
+                when (args[1].lowercase()) {
+                    "main" -> {
+                        if (sender !is Player) {
+                            sender.sendMessage("Only players can use this command.")
+                            return false
+                        }
+
+                        val mainGui = MainGui(sender)
+                        mainGui.open()
                         return true
                     }
                     else -> return false

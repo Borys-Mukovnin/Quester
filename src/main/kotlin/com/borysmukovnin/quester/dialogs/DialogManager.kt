@@ -9,6 +9,8 @@ import com.borysmukovnin.quester.models.dataclasses.Options
 import com.borysmukovnin.quester.models.dataclasses.Status
 import com.borysmukovnin.quester.quests.QuestManager
 import com.borysmukovnin.quester.utils.PluginLogger
+import com.borysmukovnin.quester.utils.applyVariables
+import com.borysmukovnin.quester.utils.asFormattedComponent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
@@ -58,13 +60,12 @@ object DialogManager {
             when (existingData.Status) {
                 Status.ACTIVE -> {
                     player.sendMessage("Dialog is already active")
+                    sessions[player.uniqueId] = DialogSession(player, startNode)
                     showDialog(player,startNode)
                     return
                 }
                 Status.COMPLETED -> {
                     val repeatable = nodes[startNode.id]?.Settings?.Repeatable ?: 1
-                    println(repeatable)
-                    println(existingData.TimesCompleted)
                     if (repeatable >= 0 && existingData.TimesCompleted >= repeatable) {
                         player.sendMessage("Dialog has been completed maximum allowed times")
                         return
@@ -137,14 +138,14 @@ object DialogManager {
     }
 
     fun showDialog(player: Player, node: DialogNode) {
-        val mini = MiniMessage.miniMessage()
-        var component = mini.deserialize("<gray>${node.text}</gray>\n")
+        var component = node.text.applyVariables(player).asFormattedComponent()
+
         node.options.forEachIndexed { i, option ->
             if (!option.conditions.all { it.isMet(player) }) return@forEachIndexed
 
-            val clickable = mini.deserialize("<green>[${option.text}]</green>")
+            val clickable = (option.text + "\n").applyVariables(player).asFormattedComponent()
                 .clickEvent(ClickEvent.runCommand("/q dialog select $i"))
-                .hoverEvent(HoverEvent.showText(mini.deserialize(option.hover)))
+                .hoverEvent(HoverEvent.showText(option.hover.applyVariables(player).asFormattedComponent()))
 
             component = component.append(clickable).append(Component.space())
         }
@@ -199,10 +200,11 @@ object DialogManager {
     fun loadPlayerDialogsAsync(player: Player, onComplete: Runnable? = null) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
             val file = File(plugin.dataFolder, "player_data/${player.uniqueId}.yml")
+
             if (!file.exists()) return@Runnable
 
             val config = YamlConfiguration.loadConfiguration(file)
-            val completedDialogsSection = config.getConfigurationSection("completed_dialogs") ?: return@Runnable
+            val completedDialogsSection = config.getConfigurationSection("dialogs") ?: return@Runnable
 
             val playerDialogDataMap = mutableMapOf<String, PlayerDialogData>()
 
@@ -239,10 +241,9 @@ object DialogManager {
 
             Bukkit.getScheduler().runTask(plugin, Runnable {
                 activePlayerDialogs[player.uniqueId] = playerDialogDataMap
+                onComplete?.run()
             })
         })
-
-        onComplete?.run()
     }
 
     fun savePlayerCompletedDialogAsync(player: Player, onComplete: Runnable? = null) {
@@ -268,12 +269,17 @@ object DialogManager {
                 }
 
                 config.save(file)
+
+                Bukkit.getScheduler().runTask(plugin, Runnable {
+                    this.activePlayerDialogs.remove(player.uniqueId)
+                    onComplete?.run()
+                })
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         })
 
-        onComplete?.run()
+
     }
 
     fun getNode(name: String) : DialogNode {

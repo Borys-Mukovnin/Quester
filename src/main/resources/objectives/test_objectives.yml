@@ -68,7 +68,8 @@ TradeObjective:
   amount: 5
 TravelObjective:
   type: TRAVEL
-  amount: 5
+  distance: 500
+  mode: WALK
 UseObjective:
   type: USE
   items: # Optional

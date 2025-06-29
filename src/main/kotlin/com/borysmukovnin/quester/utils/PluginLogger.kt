@@ -16,6 +16,10 @@ object PluginLogger {
     }
 
     fun logInfo(msg: String) {
-        logger.info("$PREFIX $msg")
+        logger.info(msg)
+    }
+
+    fun logWarning(msg: String) {
+        logger.warning(msg)
     }
 }

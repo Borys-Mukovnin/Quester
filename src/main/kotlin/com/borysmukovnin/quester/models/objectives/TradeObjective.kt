@@ -26,7 +26,7 @@ class TradeObjective : Objective {
         }
 
     override fun isComplete(): Boolean {
-        return ProgressCurrent == ProgressGoal
+        return ProgressCurrent >= ProgressGoal
     }
     override fun deepCopy(): Objective {
         val copy = TradeObjective()

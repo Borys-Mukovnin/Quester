@@ -32,7 +32,7 @@ class CommandObjective : Objective {
             _command = value
         }
     override fun isComplete(): Boolean {
-        return ProgressCurrent == ProgressGoal
+        return ProgressCurrent >= ProgressGoal
     }
     override fun deepCopy(): CommandObjective {
         val copy = CommandObjective()

@@ -1,0 +1,1 @@
+progress_message: "{quest_name} | {stage_name} <green>Progress</green>: {objective_progress_current} / {objective_progress_goal}"

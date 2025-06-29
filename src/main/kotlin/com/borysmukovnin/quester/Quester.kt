@@ -2,11 +2,9 @@ package com.borysmukovnin.quester
 
 import com.borysmukovnin.quester.commands.QuestCommands
 import com.borysmukovnin.quester.dialogs.DialogManager
-import com.borysmukovnin.quester.listeners.PlayerCommandListener
-import com.borysmukovnin.quester.listeners.PlayerCraftListener
-import com.borysmukovnin.quester.listeners.PlayerJoinListener
-import com.borysmukovnin.quester.listeners.PlayerQuitListener
+import com.borysmukovnin.quester.listeners.*
 import com.borysmukovnin.quester.quests.QuestManager
+import com.borysmukovnin.quester.utils.Configurator
 import com.borysmukovnin.quester.utils.PluginLogger
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
@@ -20,6 +18,7 @@ class Quester : JavaPlugin() {
         PluginLogger.init(this)
         this.saveAllResources(this)
 
+        Configurator.init(this)
         QuestManager.init(this)
         DialogManager.init(this)
 
@@ -29,7 +28,17 @@ class Quester : JavaPlugin() {
         this.server.pluginManager.registerEvents(PlayerQuitListener(), this)
         this.server.pluginManager.registerEvents(PlayerCommandListener(), this)
         this.server.pluginManager.registerEvents(PlayerCraftListener(), this)
-
+        this.server.pluginManager.registerEvents(PlayerEnchantListener(), this)
+        this.server.pluginManager.registerEvents(PlayerExpListener(), this)
+        this.server.pluginManager.registerEvents(PlayerGotoListener(), this)
+        this.server.pluginManager.registerEvents(PlayerInteractListener(), this)
+        this.server.pluginManager.registerEvents(PlayerKillListener(), this)
+        this.server.pluginManager.registerEvents(PlayerLootListener(), this)
+        this.server.pluginManager.registerEvents(PlayerMineListener(), this)
+        this.server.pluginManager.registerEvents(PlayerPickListener(), this)
+        this.server.pluginManager.registerEvents(PlayerPlaceListener(), this)
+        this.server.pluginManager.registerEvents(PlayerTradeListener(), this)
+        this.server.pluginManager.registerEvents(PlayerTravelListener(), this)
 
     }
 
@@ -57,6 +66,7 @@ class Quester : JavaPlugin() {
             entry = jarStream.nextJarEntry
         }
     }
+
 
 
 }

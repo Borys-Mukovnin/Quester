@@ -17,15 +17,15 @@ import com.borysmukovnin.quester.models.dataclasses.PlayerQuestData
 import com.borysmukovnin.quester.models.dataclasses.Quest
 import com.borysmukovnin.quester.models.dataclasses.Stage
 import com.borysmukovnin.quester.models.dataclasses.Status
+import com.borysmukovnin.quester.models.dataclasses.TravelMode
 import com.borysmukovnin.quester.models.dataclasses.Weather
-import com.borysmukovnin.quester.utils.MainUtils
-import com.borysmukovnin.quester.utils.PluginLogger
-import com.borysmukovnin.quester.utils.deepCopy
+import com.borysmukovnin.quester.utils.*
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.block.Biome
 import org.bukkit.command.CommandSender
+import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.EntityType
@@ -82,7 +82,7 @@ object QuestManager {
     private val options: MutableMap<String, Options> = mutableMapOf()
 
 
-    fun loadQuests() {
+    private fun loadQuests() {
         quests.clear()
 
         val questsFolder = File(plugin.dataFolder, "quests")
@@ -91,7 +91,7 @@ object QuestManager {
         questsFolder.walkTopDown()
             .filter { it.isFile && it.extension.equals("yml", ignoreCase = true) }
             .forEach { file ->
-                quests[file.nameWithoutExtension] = parseQuest(YamlConfiguration.loadConfiguration(file))
+                quests[file.nameWithoutExtension] = parseQuest(file)
             }
     }
 
@@ -182,28 +182,31 @@ object QuestManager {
 
                 val playerQuests = activePlayersQuests[player.uniqueId] ?: return@Runnable
                 for ((questName, playerQuestData) in playerQuests) {
-                    val questSubSection = questsSection.createSection(questName)
+                    val questSubSection = questsSection.getConfigurationSection(questName) ?: questsSection.createSection(questName)
                     questSubSection.set("status", playerQuestData.Status.name.lowercase())
                     questSubSection.set("times_completed", playerQuestData.TimesCompleted)
                     questSubSection.set("last_started", playerQuestData.LastStarted.toString())
 
-                    val stagesSection = questSubSection.createSection("stages")
+                    val stagesSection = questSubSection.getConfigurationSection("stages") ?: questSubSection.createSection("stages")
                     for ((stageName, stage) in playerQuestData.Quest.Stages) {
-                        val stageSection = stagesSection.createSection(stageName)
+                        val stageSection = stagesSection.getConfigurationSection(stageName) ?: stagesSection.createSection(stageName)
                         val objectiveProgress = stage.Objectives.map { it.ProgressCurrent }
+
                         stageSection.set("objectives", objectiveProgress)
                     }
                 }
 
                 config.save(playerFile)
 
-                this.activePlayersQuests.remove(player.uniqueId)
+                Bukkit.getScheduler().runTask(plugin, Runnable {
+                    this.activePlayersQuests.remove(player.uniqueId)
+                    onComplete?.run()
+                })
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         })
 
-        onComplete?.run()
     }
 
     fun loadActivePlayerQuestsAsync(player: Player, onComplete: Runnable? = null) {
@@ -264,20 +267,20 @@ object QuestManager {
 
             Bukkit.getScheduler().runTask(plugin, Runnable {
                 activePlayersQuests[player.uniqueId] = playerQuestDataMap
+                onComplete?.run()
             })
         })
-
-        onComplete?.run()
     }
 
-    private fun parseQuest(config: FileConfiguration): Quest {
-        val name = config.getString("name") ?: error("Quest must have a name")
+    private fun parseQuest(file: File): Quest {
+        val config = YamlConfiguration.loadConfiguration(file)
+        val name = config.getRequiredString("name",file.name) ?: "Default Name"
         val description = config.getStringList("description")
 
         val startConditions = config.getStringList("start_conditions").mapNotNull { conditions[it] }
         val startActions = config.getStringList("start_actions").mapNotNull { actions[it] }
 
-        val stagesSection = config.getConfigurationSection("stages") ?: error("Quest must have stages")
+        val stagesSection = config.getRequiredConfigurationSection("stages",file.name) ?: YamlConfiguration().createSection("stages")
         val stages = mutableMapOf<String, Stage>()
 
         for (key in stagesSection.getKeys(false)) {
@@ -288,7 +291,7 @@ object QuestManager {
             val stageDescription = stageSection.getStringList("description")
 
             val objectiveIds = stageSection.getStringList("objectives")
-            val objectiveList = objectiveIds.mapNotNull { objectives[it]?.deepCopy() }
+            val objectiveList = objectiveIds.mapNotNull { objectives[it]?.deepCopy() }.toMutableList()
 
             val actionIds = stageSection.getStringList("actions")
             val actionList = actionIds.mapNotNull { actions[it] }
@@ -443,8 +446,8 @@ object QuestManager {
                             val itemStacks = mutableListOf<ItemStack>()
                             var totalAmount = 0
 
-                            items.forEach { itemMap ->
-                                val matStr = itemMap["item"] as? String ?: return@forEach
+                            for (itemMap in items) {
+                                val matStr = itemMap["item"] as? String ?: continue
                                 val mat = MainUtils.parseMaterial(matStr)
                                 val amt = (itemMap["amount"] as? Int) ?: 1
 
@@ -509,7 +512,7 @@ object QuestManager {
                     "CRAFT" -> CraftObjective().apply {
                         val items = section.getStringList("items")
                         Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "ENCHANT" -> EnchantObjective().apply {
@@ -522,11 +525,11 @@ object QuestManager {
                             MainUtils.getEnchantmentFromString(split[0])
                         } else null
 
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "EXP" -> ExpObjective().apply {
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "GOTO" -> GotoObjective().apply {
@@ -540,7 +543,7 @@ object QuestManager {
                     "INTERACT" -> InteractObjective().apply {
                         val targets = section.getStringList("targets")
                         Block = if (targets.isNotEmpty()) targets.map { MainUtils.parseMaterial(it) } else null
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "KILL" -> KillObjective().apply {
@@ -552,45 +555,44 @@ object QuestManager {
                         val items = section.getStringList("allowed_items")
                         Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
 
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "LOOT" -> LootObjective().apply {
                         val items = section.getStringList("items")
                         Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "MINE" -> MineObjective().apply {
                         val blocks = section.getStringList("blocks")
                         Block = if (blocks.isNotEmpty()) blocks.map { MainUtils.parseMaterial(it) } else null
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "PICK" -> PickObjective().apply {
                         val items = section.getStringList("items")
                         Item = if (items.isNotEmpty()) items.map { ItemStack(MainUtils.parseMaterial(it)) } else null
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "PLACE" -> PlaceObjective().apply {
                         val blocks = section.getStringList("blocks")
                         Block = if (blocks.isNotEmpty()) blocks.map { MainUtils.parseMaterial(it) } else null
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "TRADE" -> TradeObjective().apply {
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("amount", 1)
                     }
 
                     "TRAVEL" -> TravelObjective().apply {
-                        ProgressGoal = section.getInt("amount", 0)
-                    }
-
-                    "USE" -> UseObjective().apply {
-                        val items = section.getStringList("items")
-                        Block = if (items.isNotEmpty()) items.map { MainUtils.parseMaterial(it) } else null
-                        ProgressGoal = section.getInt("amount", 0)
+                        ProgressGoal = section.getInt("distance", 1)
+                        Mode = try {
+                            TravelMode.valueOf(section.getString("mode")!!)
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
 
                     else -> continue
@@ -687,9 +689,8 @@ object QuestManager {
             ?: error("Option '$name' not found")
     }
 
-    fun getActivePlayerQuests(id: UUID) : Map<String, PlayerQuestData> {
-        return activePlayersQuests[id]
-            ?: mapOf()
+    fun getActivePlayerQuests(id: UUID) : MutableMap<String, PlayerQuestData> {
+        return activePlayersQuests.getOrPut(id) { mutableMapOf() }
     }
 
 }
