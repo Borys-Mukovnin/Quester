@@ -40,6 +40,8 @@ class Quester : JavaPlugin() {
         this.server.pluginManager.registerEvents(PlayerTradeListener(), this)
         this.server.pluginManager.registerEvents(PlayerTravelListener(), this)
 
+        this.server.pluginManager.registerEvents(QuestGuiListener(), this)
+
     }
 
     override fun onDisable() {

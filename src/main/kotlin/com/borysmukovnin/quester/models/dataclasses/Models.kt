@@ -60,19 +60,7 @@ data class Options(
     val StartDate: Instant?,
     val EndDate: Instant?
 )
-data class Gui(
-    val name: String,
-    val size: Int,
-    val items: List<GuiItem>
-)
 
-data class GuiItem(
-    val itemStack: ItemStack,
-    val position: List<Int>,
-    val leftClick: String?,
-    val rightClick: String?,
-    val middleClick: String?
-)
 data class Lang(
     val progressMessage: String,
 )
@@ -105,4 +93,3 @@ enum class Status {
 enum class TravelMode {
     WALK, SPRINT, SWIM, FLY, MOUNT
 }
-

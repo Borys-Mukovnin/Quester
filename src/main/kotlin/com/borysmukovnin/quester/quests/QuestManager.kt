@@ -692,5 +692,4 @@ object QuestManager {
     fun getActivePlayerQuests(id: UUID) : MutableMap<String, PlayerQuestData> {
         return activePlayersQuests.getOrPut(id) { mutableMapOf() }
     }
-
 }

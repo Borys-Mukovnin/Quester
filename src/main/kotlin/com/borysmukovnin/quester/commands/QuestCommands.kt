@@ -3,6 +3,7 @@ package com.borysmukovnin.quester.commands
 import com.borysmukovnin.quester.Quester
 import com.borysmukovnin.quester.dialogs.DialogManager
 import com.borysmukovnin.quester.guis.MainGui
+import com.borysmukovnin.quester.guis.QuestsGui
 import com.borysmukovnin.quester.quests.QuestManager
 import com.borysmukovnin.quester.utils.Configurator
 import org.bukkit.command.Command
@@ -61,6 +62,17 @@ class QuestCommands(private val plugin: Quester) : CommandExecutor {
                         mainGui.open()
                         return true
                     }
+                    "quests" -> {
+                        if (sender !is Player) {
+                            sender.sendMessage("Only players can use this command.")
+                            return false
+                        }
+
+                        val mainGui = QuestsGui(sender)
+                        mainGui.open()
+                        return true
+                    }
+
                     else -> return false
                 }
             }
